@@ -17,8 +17,8 @@
 - [x] Deadline rules engine
 - [x] Prototype banner, simulated messages view, security warning fix
 - [x] Employer portal (invite by email) + worker portal (magic link)
-- [ ] a) Missing deadline rules (réserves, CPAM, inaptitude 1 mois, contestation 15 j) — waiting for user go
-- [ ] b) "Ma journée" worklist + risk score
+- [x] a) Missing deadline rules (done in item 5)
+- [x] b) "Ma journée" worklist + risk score
 - [ ] c) Per-field AI extraction validation with evidence
 - [ ] d) Return-to-work plan
 - [ ] e) Visit booking + prepare visit + post-visit drafts (no dictation)
