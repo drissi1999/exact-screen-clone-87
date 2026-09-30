@@ -397,6 +397,7 @@ export type Database = {
           id: string
           mime_type: string | null
           page_count: number | null
+          source: string
           storage_path: string
           tenant_id: string
           uploaded_by: string | null
@@ -412,6 +413,7 @@ export type Database = {
           id?: string
           mime_type?: string | null
           page_count?: number | null
+          source?: string
           storage_path: string
           tenant_id: string
           uploaded_by?: string | null
@@ -427,6 +429,7 @@ export type Database = {
           id?: string
           mime_type?: string | null
           page_count?: number | null
+          source?: string
           storage_path?: string
           tenant_id?: string
           uploaded_by?: string | null
@@ -441,6 +444,60 @@ export type Database = {
           },
           {
             foreignKeyName: "documents_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      employer_invitations: {
+        Row: {
+          accepted_at: string | null
+          company_id: string
+          created_at: string
+          email: string
+          expires_at: string
+          full_name: string | null
+          id: string
+          invited_by: string
+          tenant_id: string
+          token_hash: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          company_id: string
+          created_at?: string
+          email: string
+          expires_at: string
+          full_name?: string | null
+          id?: string
+          invited_by: string
+          tenant_id: string
+          token_hash: string
+        }
+        Update: {
+          accepted_at?: string | null
+          company_id?: string
+          created_at?: string
+          email?: string
+          expires_at?: string
+          full_name?: string | null
+          id?: string
+          invited_by?: string
+          tenant_id?: string
+          token_hash?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employer_invitations_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employer_invitations_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -596,18 +653,21 @@ export type Database = {
       }
       profiles: {
         Row: {
+          company_id: string | null
           created_at: string
           full_name: string | null
           tenant_id: string
           user_id: string
         }
         Insert: {
+          company_id?: string | null
           created_at?: string
           full_name?: string | null
           tenant_id: string
           user_id: string
         }
         Update: {
+          company_id?: string | null
           created_at?: string
           full_name?: string | null
           tenant_id?: string
@@ -615,7 +675,68 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "profiles_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "profiles_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      simulated_messages: {
+        Row: {
+          body: string
+          case_id: string | null
+          channel: string
+          created_at: string
+          id: string
+          recipient_label: string
+          sent_by: string | null
+          subject: string | null
+          tenant_id: string
+          to_address: string | null
+        }
+        Insert: {
+          body: string
+          case_id?: string | null
+          channel: string
+          created_at?: string
+          id?: string
+          recipient_label: string
+          sent_by?: string | null
+          subject?: string | null
+          tenant_id: string
+          to_address?: string | null
+        }
+        Update: {
+          body?: string
+          case_id?: string | null
+          channel?: string
+          created_at?: string
+          id?: string
+          recipient_label?: string
+          sent_by?: string | null
+          subject?: string | null
+          tenant_id?: string
+          to_address?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "simulated_messages_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "cases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "simulated_messages_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -737,6 +858,96 @@ export type Database = {
           },
         ]
       }
+      worker_links: {
+        Row: {
+          case_id: string
+          created_at: string
+          created_by: string
+          expires_at: string
+          id: string
+          tenant_id: string
+          token_hash: string
+          used_at: string | null
+        }
+        Insert: {
+          case_id: string
+          created_at?: string
+          created_by: string
+          expires_at: string
+          id?: string
+          tenant_id: string
+          token_hash: string
+          used_at?: string | null
+        }
+        Update: {
+          case_id?: string
+          created_at?: string
+          created_by?: string
+          expires_at?: string
+          id?: string
+          tenant_id?: string
+          token_hash?: string
+          used_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "worker_links_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "cases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "worker_links_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      worker_sessions: {
+        Row: {
+          case_id: string
+          created_at: string
+          expires_at: string
+          id: string
+          tenant_id: string
+          token_hash: string
+        }
+        Insert: {
+          case_id: string
+          created_at?: string
+          expires_at: string
+          id?: string
+          tenant_id: string
+          token_hash: string
+        }
+        Update: {
+          case_id?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          tenant_id?: string
+          token_hash?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "worker_sessions_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "cases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "worker_sessions_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       workers: {
         Row: {
           birth_date: string | null
@@ -799,12 +1010,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      can_read_level: {
-        Args: { _level: Database["public"]["Enums"]["confidentiality"] }
-        Returns: boolean
-      }
-      current_tenant_id: { Args: never; Returns: string }
-      has_role_text: { Args: { _role: string }; Returns: boolean }
+      [_ in never]: never
     }
     Enums: {
       app_role:

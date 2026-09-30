@@ -17,6 +17,7 @@ import {
   reviewEvent,
   updateTask,
 } from "@/lib/cases.functions";
+import { createWorkerLink } from "@/lib/portal.functions";
 import { CONF_LABELS, ROLE_LABELS } from "@/lib/rules";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -70,6 +71,7 @@ function CasePage() {
   const drReview = useServerFn(reviewDraft);
   const plan = useServerFn(planCoordination);
   const task = useServerFn(updateTask);
+  const workerLink = useServerFn(createWorkerLink);
 
   const [busy, setBusy] = useState<string | null>(null);
   const [conf, setConf] = useState("MEDICAL");
@@ -230,6 +232,7 @@ function CasePage() {
         </TabsContent>
 
         <TabsContent value="coordination" className="space-y-4">
+          <Button variant="outline" className="mr-2" disabled={!!busy} onClick={() => run("wlink", () => workerLink({ data: { caseId, origin: window.location.origin } }), "Lien salarié envoyé (simulé) — voir « Messages simulés »")}>Envoyer le lien salarié</Button>
           <Button disabled={!!busy} onClick={() => run("plan", async () => { const r = await plan({ data: { caseId } }); toast.success(`${r.created} action(s) planifiée(s)`); })}>Planifier les relances</Button>
           <p className="text-xs text-muted-foreground">L'agent de coordination prépare les relances (pièces manquantes, rendez-vous, échéances) sans jamais donner de conseil médical. Aucun service SMS/email n'est encore connecté : « Envoyer » marque la relance comme envoyée.</p>
           {data.tasks.map((t) => (

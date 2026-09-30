@@ -5,5 +5,13 @@
 - [x] AI summary + employer letter drafts with approval
 - [x] Coordination agent (planning, send, escalate) — real SMS/email sending blocked on choosing a provider
 - [x] Deadline rules engine
-- [ ] Employer & worker portals (blocked: user to confirm how they invite employers/workers)
-- [ ] Visit booking calendar, audio transcription
+- [x] Prototype banner, simulated messages view, security warning fix
+- [x] Employer portal (invite by email) + worker portal (magic link)
+- [ ] a) Missing deadline rules (réserves, CPAM, inaptitude 1 mois, contestation 15 j) — waiting for user go
+- [ ] b) "Ma journée" worklist + risk score
+- [ ] c) Per-field AI extraction validation with evidence
+- [ ] d) Return-to-work plan
+- [ ] e) Visit booking + prepare visit + post-visit drafts (no dictation)
+- [ ] f) Inaptitude wizard
+- [ ] g) 12 fictional cases with watermarked docs
+- [ ] h) Dashboards

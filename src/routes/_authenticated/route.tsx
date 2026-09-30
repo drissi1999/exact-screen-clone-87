@@ -1,6 +1,8 @@
 import { createFileRoute, Outlet, Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { getMe } from "@/lib/cases.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -13,6 +15,8 @@ export const Route = createFileRoute("/_authenticated")({
 const NAV = [
   { to: "/tableau-de-bord", label: "Tableau de bord" },
   { to: "/dossiers", label: "Dossiers" },
+  { to: "/entreprises", label: "Entreprises" },
+  { to: "/messages", label: "Messages simulés" },
   { to: "/parametres/imports", label: "Imports" },
   { to: "/parametres/equipe", label: "Équipe · Accès" },
 ] as const;
@@ -22,6 +26,13 @@ function AuthenticatedLayout() {
   const queryClient = useQueryClient();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const [checked, setChecked] = useState(false);
+  const fetchMe = useServerFn(getMe);
+  const { data: me } = useQuery({ queryKey: ["me"], queryFn: () => fetchMe(), enabled: checked });
+  const staff = (me?.roles ?? []).some((r) => r !== "EMPLOYER_HR" && r !== "WORKER");
+  const employerOnly = !!me && !staff;
+  useEffect(() => {
+    if (employerOnly && !pathname.startsWith("/employeur")) navigate({ to: "/employeur", replace: true });
+  }, [employerOnly, pathname, navigate]);
 
   useEffect(() => {
     let active = true;
@@ -54,11 +65,11 @@ function AuthenticatedLayout() {
     <div className="min-h-screen bg-background">
       <header className="border-b border-border bg-card">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-4 px-6 py-4">
-          <Link to="/tableau-de-bord" className="font-display text-lg font-semibold tracking-tight">
+          <Link to={employerOnly ? "/employeur" : "/tableau-de-bord"} className="font-display text-lg font-semibold tracking-tight">
             Reprise
           </Link>
           <nav className="flex flex-wrap gap-1">
-            {NAV.map((item) => (
+            {(employerOnly ? ([{ to: "/employeur", label: "Espace employeur" }] as const) : NAV).map((item) => (
               <Link
                 key={item.to}
                 to={item.to}
