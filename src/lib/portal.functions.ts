@@ -4,6 +4,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { computeDeadlines } from "./rules";
 import { buildEmployerPortal } from "./employer-portal.server";
 import { genericDocTitle } from "./message-templates";
+import { PORTAL_DOC_COLUMNS, visibleInPortal } from "./portal-visibility";
 
 const WORKER_DEADLINES = new Set(["RDV_LIAISON", "PRE_REPRISE", "VISITE_REPRISE"]);
 const MAX_UPLOAD = 5 * 1024 * 1024;
@@ -241,8 +242,8 @@ export const getEmployerDocUrl = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { tenantId, companyId } = await employerContext(context.supabase, context.userId);
     const db = await admin();
-    const { data: doc } = await db.from("documents").select("id, case_id, storage_path, confidentiality, cases(company_id)").eq("id", data.documentId).maybeSingle();
-    const allowed = doc && doc.confidentiality === "EMPLOYER_VISIBLE" && doc.cases?.company_id === companyId;
+    const { data: doc } = await db.from("documents").select(`storage_path, ${PORTAL_DOC_COLUMNS}, cases(company_id)`).eq("id", data.documentId).maybeSingle();
+    const allowed = doc && doc.cases?.company_id === companyId && visibleInPortal(doc, "EMPLOYER");
     await audit(db, { tenant_id: tenantId, user_id: context.userId, action: allowed ? "DOWNLOAD" : "DENIED", entity: "documents", entity_id: data.documentId, case_id: allowed ? doc.case_id : null });
     if (!allowed) throw new Error("Accès refusé");
     const { data: signed } = await db.storage.from("case-documents").createSignedUrl(doc.storage_path, 120);
@@ -326,8 +327,8 @@ export const getWorkerPortal = createServerFn({ method: "POST" })
     const { db, caseId, expiresAt } = await workerSession(data.sessionToken);
     const { data: c } = await db.from("cases").select("id, status, origin, worker_id, workers(first_name), companies(name)").eq("id", caseId).single();
     const [st, docs, drafts, tasks, sent] = await Promise.all([
-      db.from("work_stoppages").select("start_date, end_date, origin, kind").eq("worker_id", c.worker_id).order("start_date"),
-      db.from("documents").select("id, doc_type, source, filename, created_at").eq("case_id", caseId).eq("confidentiality", "WORKER_VISIBLE"),
+      db.from("work_stoppages").select("start_date, end_date, origin, kind").eq("case_id", caseId).order("start_date"),
+      db.from("documents").select(PORTAL_DOC_COLUMNS).eq("case_id", caseId).eq("confidentiality", "WORKER_VISIBLE").neq("source", "WORKER"),
       db.from("ai_drafts").select("id, approved_text, approved_at").eq("case_id", caseId).eq("confidentiality", "WORKER_VISIBLE").eq("status", "APPROVED"),
       db.from("coordination_tasks").select("id, message, status, due_at").eq("case_id", caseId).eq("recipient", "WORKER").in("status", ["SENT", "DONE"]),
       db.from("documents").select("id, filename, created_at").eq("case_id", caseId).eq("source", "WORKER"),
@@ -340,7 +341,7 @@ export const getWorkerPortal = createServerFn({ method: "POST" })
       deadlines: computeDeadlines(st.data ?? [], c.origin)
         .filter((d) => WORKER_DEADLINES.has(d.code))
         .map((d) => ({ code: d.code, label: d.label, from: d.from, due: d.due, status: d.status })),
-      documents: (docs.data ?? []).map((d: any) => ({ id: d.id as string, title: d.source === "WORKER" ? (d.filename as string) : genericDocTitle(d.doc_type) })),
+      documents: (docs.data ?? []).filter((d: any) => visibleInPortal(d, "WORKER")).map((d: any) => ({ id: d.id as string, title: genericDocTitle(d.doc_type) })),
       messages: (drafts.data ?? []).map((d: any) => ({ id: d.id as string, text: d.approved_text as string })),
       tasks: (tasks.data ?? []).map((t: any) => ({ id: t.id as string, message: t.message as string, status: t.status as string, due: (t.due_at ?? null) as string | null })),
       sent: (sent.data ?? []).map((d: any) => ({ id: d.id as string, filename: d.filename as string, createdAt: d.created_at as string })),
@@ -373,8 +374,8 @@ export const getWorkerDocUrl = createServerFn({ method: "POST" })
   .inputValidator((d) => z.object({ sessionToken: sessionSchema, documentId: z.string().uuid() }).parse(d))
   .handler(async ({ data }) => {
     const { db, caseId } = await workerSession(data.sessionToken);
-    const { data: doc } = await db.from("documents").select("storage_path").eq("id", data.documentId).eq("case_id", caseId).eq("confidentiality", "WORKER_VISIBLE").maybeSingle();
-    if (!doc) throw new Error("Accès refusé");
+    const { data: doc } = await db.from("documents").select(`storage_path, ${PORTAL_DOC_COLUMNS}`).eq("id", data.documentId).eq("case_id", caseId).maybeSingle();
+    if (!doc || doc.source === "WORKER" || !visibleInPortal(doc, "WORKER")) throw new Error("Accès refusé");
     const { data: signed } = await db.storage.from("case-documents").createSignedUrl(doc.storage_path, 120);
     return { url: (signed?.signedUrl ?? "") as string };
   });

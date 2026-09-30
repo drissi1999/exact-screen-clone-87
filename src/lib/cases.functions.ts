@@ -154,7 +154,7 @@ export const getCaseDetail = createServerFn({ method: "GET" })
       .maybeSingle();
     if (!c) throw new Error("Dossier introuvable");
     const [st, items, tasks] = await Promise.all([
-      sb.from("work_stoppages").select("start_date, end_date, origin, kind").eq("worker_id", c.worker_id).order("start_date"),
+      sb.from("work_stoppages").select("start_date, end_date, origin, kind").eq("case_id", c.id).order("start_date"),
       // Documents, events and drafts at every level the caller may read; MEDICAL reads are audited in the database.
       db().then((a) => a.rpc("staff_case_items", { _actor: context.userId, _case: c.id })),
       sb.from("coordination_tasks").select("id, recipient, channel, purpose, message, status, due_at, sent_at, escalated_reason").eq("case_id", c.id).order("created_at", { ascending: false }),
@@ -317,7 +317,7 @@ export const generateEmployerNotice = createServerFn({ method: "POST" })
     const tenantId = await tenantOf(sb, context.userId);
     const { data: c } = await sb.from("cases").select("worker_id, workers(last_name, first_name, job_title), companies(name)").eq("id", data.caseId).maybeSingle();
     if (!c) throw new Error("Dossier introuvable");
-    const { data: st } = await sb.from("work_stoppages").select("start_date, end_date").eq("worker_id", c.worker_id).order("start_date");
+    const { data: st } = await sb.from("work_stoppages").select("start_date, end_date").eq("case_id", data.caseId).order("start_date");
     const last = st?.at(-1);
     const fr = (s?: string | null) => (s ? new Date(`${s}T12:00:00Z`).toLocaleDateString("fr-FR") : "à préciser");
     const text = `Objet : Accompagnement du retour à l'emploi de ${c.workers?.first_name} ${c.workers?.last_name}
@@ -363,7 +363,7 @@ export const planCoordination = createServerFn({ method: "POST" })
     const { data: c } = await sb.from("cases").select("worker_id, origin, workers(first_name), companies(name)").eq("id", data.caseId).maybeSingle();
     if (!c) throw new Error("Dossier introuvable");
     const [{ data: st }, { data: docs }, { data: existing }] = await Promise.all([
-      sb.from("work_stoppages").select("start_date, end_date, origin, kind").eq("worker_id", c.worker_id),
+      sb.from("work_stoppages").select("start_date, end_date, origin, kind").eq("case_id", data.caseId),
       db().then((a) => a.from("documents").select("doc_type").eq("case_id", data.caseId).eq("tenant_id", tenantId)), // types only, no content
       sb.from("coordination_tasks").select("purpose").eq("case_id", data.caseId).in("status", ["PENDING", "SENT"]),
     ]);
@@ -434,5 +434,18 @@ export const lowerDocumentConfidentiality = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { error } = await (await db()).rpc("lower_document_confidentiality", { _actor: context.userId, _doc: data.documentId, _level: data.level });
     if (error) throw new Error(error.message.includes("role") ? "Seul le médecin du travail peut abaisser la confidentialité" : "Changement refusé");
+    return { ok: true };
+  });
+
+/** Publish a staff document to the employer/worker portal: MEDECIN_TRAVAIL or IDEST, checked and logged in public.release_document. */
+export const releaseDocument = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ documentId: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { error } = await (await db()).rpc("release_document", { _actor: context.userId, _doc: data.documentId });
+    if (error) {
+      const m = error.message;
+      throw new Error(m.includes("role") ? "Seuls le médecin du travail et l'IDEST peuvent publier" : m.includes("analysis") ? "Analyse non terminée : publication impossible" : "Ce document ne peut pas être publié");
+    }
     return { ok: true };
   });

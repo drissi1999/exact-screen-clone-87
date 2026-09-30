@@ -17,6 +17,7 @@ import {
   reviewEvent,
   updateTask,
   lowerDocumentConfidentiality,
+  releaseDocument,
 } from "@/lib/cases.functions";
 import { createWorkerLink } from "@/lib/portal.functions";
 import { CONF_LABELS, ROLE_LABELS } from "@/lib/rules";
@@ -73,6 +74,7 @@ function CasePage() {
   const plan = useServerFn(planCoordination);
   const task = useServerFn(updateTask);
   const lowerConf = useServerFn(lowerDocumentConfidentiality);
+  const release = useServerFn(releaseDocument);
   const workerLink = useServerFn(createWorkerLink);
 
   const [busy, setBusy] = useState<string | null>(null);
@@ -198,6 +200,9 @@ function CasePage() {
                   <ConfBadge level={d.confidentiality} />
                   <Button size="sm" variant="outline" onClick={() => run(d.id, async () => { const { url } = await docUrl({ data: { documentId: d.id } }); if (url) window.open(url, "_blank"); })}>Ouvrir</Button>
                   {d.analysis_status !== "DONE" && <Button size="sm" variant="ghost" disabled={!!busy} onClick={() => run(d.id, () => analyze({ data: { documentId: d.id } }), "Analyse terminée")}>Analyser</Button>}
+                  {(d.confidentiality === "EMPLOYER_VISIBLE" || d.confidentiality === "WORKER_VISIBLE") && d.source !== "EMPLOYER" && d.source !== "WORKER" && (d.released_at
+                    ? <Badge variant="outline">Publié le {fr(d.released_at)}</Badge>
+                    : <Button size="sm" variant="outline" disabled={!!busy || d.analysis_status !== "DONE"} title={d.analysis_status !== "DONE" ? "Analyse requise avant publication" : "Réservé au médecin du travail et à l'IDEST, tracé"} onClick={() => run(d.id, () => release({ data: { documentId: d.id } }), "Document publié")}>{d.confidentiality === "EMPLOYER_VISIBLE" ? "Publier à l'employeur" : "Publier au salarié"}</Button>)}
                   {d.confidentiality === "MEDICAL" && <Button size="sm" variant="ghost" disabled={!!busy} title="Réservé au médecin du travail, tracé" onClick={() => { if (confirm("Abaisser ce document en « Partagé PDP » ? Action réservée au médecin du travail et tracée.")) run(d.id, () => lowerConf({ data: { documentId: d.id, level: "PDP_SHARED" } }), "Niveau abaissé"); }}>Abaisser</Button>}
                 </div>
               </div>
