@@ -64,7 +64,7 @@ run("confidentiality and templated coordination (live database)", () => {
     // Early event extracted before classification (worst case ordering).
     const ev = (await admin.from("case_events").insert({ tenant_id: tenant, case_id: caseId, label: "fait extrait", confidentiality: "EMPLOYER_VISIBLE", source_document_id: doc.id }).select("id").single()).data;
     let portal = await buildEmployerPortal(admin, tenant, companyId);
-    expect(portal.cases[0].documents.map((d: any) => d.id)).toContain(doc.id);
+    expect(portal.cases[0].documents.map((d: any) => d.id)).not.toContain(doc.id); // hidden until analysed and released
 
     // What analyzeDocument writes after AI classification.
     const cls = await admin.from("documents").update({ doc_type: "COMPTE_RENDU", analysis_status: "DONE" }).eq("id", doc.id);
