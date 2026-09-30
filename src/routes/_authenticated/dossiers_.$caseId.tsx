@@ -16,6 +16,7 @@ import {
   reviewDraft,
   reviewEvent,
   updateTask,
+  lowerDocumentConfidentiality,
 } from "@/lib/cases.functions";
 import { createWorkerLink } from "@/lib/portal.functions";
 import { CONF_LABELS, ROLE_LABELS } from "@/lib/rules";
