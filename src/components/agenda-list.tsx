@@ -1,7 +1,8 @@
 import { Link } from "@tanstack/react-router";
 import { CalendarClock, ListChecks } from "lucide-react";
-import type { AgendaItem } from "@/lib/my-day.server";
 import { DeadlineBadge, EmptyState, frDate } from "@/components/kit";
+
+type AgendaItem = { date: string; caseId: string; worker: string; company: string; label: string; kind: "ECHEANCE" | "PLAN"; code: string; visit: boolean; overdue: boolean };
 
 const dayLabel = (d: string, today: string) => {
   if (d < today) return "En retard";

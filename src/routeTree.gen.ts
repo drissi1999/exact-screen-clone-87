@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedAccueilRouteImport } from './routes/_authenticated/accueil'
+import { Route as AuthenticatedAgendaRouteImport } from './routes/_authenticated/agenda'
 import { Route as AuthenticatedApercuRouteImport } from './routes/_authenticated/apercu'
 import { Route as AuthenticatedDossiersRouteImport } from './routes/_authenticated/dossiers'
 import { Route as AuthenticatedEmployeurRouteImport } from './routes/_authenticated/employeur'
@@ -20,6 +21,7 @@ import { Route as AuthenticatedEntreprisesRouteImport } from './routes/_authenti
 import { Route as AuthenticatedMaJourneeRouteImport } from './routes/_authenticated/ma-journee'
 import { Route as AuthenticatedMessagesRouteImport } from './routes/_authenticated/messages'
 import { Route as AuthenticatedTableauDeBordRouteImport } from './routes/_authenticated/tableau-de-bord'
+import { Route as AuthenticatedVisitesRouteImport } from './routes/_authenticated/visites'
 import { Route as InvitationTokenRouteImport } from './routes/invitation.$token'
 import { Route as SalarieTokenRouteImport } from './routes/salarie.$token'
 import { Route as AuthenticatedDossiersCaseIdRouteImport } from './routes/_authenticated/dossiers_.$caseId'
@@ -44,6 +46,11 @@ const AuthRoute = AuthRouteImport.update({
 const AuthenticatedAccueilRoute = AuthenticatedAccueilRouteImport.update({
   id: '/accueil',
   path: '/accueil',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedAgendaRoute = AuthenticatedAgendaRouteImport.update({
+  id: '/agenda',
+  path: '/agenda',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedApercuRoute = AuthenticatedApercuRouteImport.update({
@@ -83,6 +90,11 @@ const AuthenticatedTableauDeBordRoute =
     path: '/tableau-de-bord',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedVisitesRoute = AuthenticatedVisitesRouteImport.update({
+  id: '/visites',
+  path: '/visites',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const InvitationTokenRoute = InvitationTokenRouteImport.update({
   id: '/invitation/$token',
   path: '/invitation/$token',
@@ -122,6 +134,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/accueil': typeof AuthenticatedAccueilRoute
+  '/agenda': typeof AuthenticatedAgendaRoute
   '/apercu': typeof AuthenticatedApercuRoute
   '/dossiers': typeof AuthenticatedDossiersRoute
   '/employeur': typeof AuthenticatedEmployeurRoute
@@ -129,6 +142,7 @@ export interface FileRoutesByFullPath {
   '/ma-journee': typeof AuthenticatedMaJourneeRoute
   '/messages': typeof AuthenticatedMessagesRoute
   '/tableau-de-bord': typeof AuthenticatedTableauDeBordRoute
+  '/visites': typeof AuthenticatedVisitesRoute
   '/invitation/$token': typeof InvitationTokenRoute
   '/salarie/$token': typeof SalarieTokenRoute
   '/dossiers/$caseId': typeof AuthenticatedDossiersCaseIdRoute
@@ -140,6 +154,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/accueil': typeof AuthenticatedAccueilRoute
+  '/agenda': typeof AuthenticatedAgendaRoute
   '/apercu': typeof AuthenticatedApercuRoute
   '/dossiers': typeof AuthenticatedDossiersRoute
   '/employeur': typeof AuthenticatedEmployeurRoute
@@ -147,6 +162,7 @@ export interface FileRoutesByTo {
   '/ma-journee': typeof AuthenticatedMaJourneeRoute
   '/messages': typeof AuthenticatedMessagesRoute
   '/tableau-de-bord': typeof AuthenticatedTableauDeBordRoute
+  '/visites': typeof AuthenticatedVisitesRoute
   '/invitation/$token': typeof InvitationTokenRoute
   '/salarie/$token': typeof SalarieTokenRoute
   '/dossiers/$caseId': typeof AuthenticatedDossiersCaseIdRoute
@@ -160,6 +176,7 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/_authenticated/accueil': typeof AuthenticatedAccueilRoute
+  '/_authenticated/agenda': typeof AuthenticatedAgendaRoute
   '/_authenticated/apercu': typeof AuthenticatedApercuRoute
   '/_authenticated/dossiers': typeof AuthenticatedDossiersRoute
   '/_authenticated/employeur': typeof AuthenticatedEmployeurRoute
@@ -167,6 +184,7 @@ export interface FileRoutesById {
   '/_authenticated/ma-journee': typeof AuthenticatedMaJourneeRoute
   '/_authenticated/messages': typeof AuthenticatedMessagesRoute
   '/_authenticated/tableau-de-bord': typeof AuthenticatedTableauDeBordRoute
+  '/_authenticated/visites': typeof AuthenticatedVisitesRoute
   '/invitation/$token': typeof InvitationTokenRoute
   '/salarie/$token': typeof SalarieTokenRoute
   '/_authenticated/dossiers_/$caseId': typeof AuthenticatedDossiersCaseIdRoute
@@ -180,6 +198,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/accueil'
+    | '/agenda'
     | '/apercu'
     | '/dossiers'
     | '/employeur'
@@ -187,6 +206,7 @@ export interface FileRouteTypes {
     | '/ma-journee'
     | '/messages'
     | '/tableau-de-bord'
+    | '/visites'
     | '/invitation/$token'
     | '/salarie/$token'
     | '/dossiers/$caseId'
@@ -198,6 +218,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/accueil'
+    | '/agenda'
     | '/apercu'
     | '/dossiers'
     | '/employeur'
@@ -205,6 +226,7 @@ export interface FileRouteTypes {
     | '/ma-journee'
     | '/messages'
     | '/tableau-de-bord'
+    | '/visites'
     | '/invitation/$token'
     | '/salarie/$token'
     | '/dossiers/$caseId'
@@ -217,6 +239,7 @@ export interface FileRouteTypes {
     | '/_authenticated'
     | '/auth'
     | '/_authenticated/accueil'
+    | '/_authenticated/agenda'
     | '/_authenticated/apercu'
     | '/_authenticated/dossiers'
     | '/_authenticated/employeur'
@@ -224,6 +247,7 @@ export interface FileRouteTypes {
     | '/_authenticated/ma-journee'
     | '/_authenticated/messages'
     | '/_authenticated/tableau-de-bord'
+    | '/_authenticated/visites'
     | '/invitation/$token'
     | '/salarie/$token'
     | '/_authenticated/dossiers_/$caseId'
@@ -269,6 +293,13 @@ declare module '@tanstack/react-router' {
       path: '/accueil'
       fullPath: '/accueil'
       preLoaderRoute: typeof AuthenticatedAccueilRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/agenda': {
+      id: '/_authenticated/agenda'
+      path: '/agenda'
+      fullPath: '/agenda'
+      preLoaderRoute: typeof AuthenticatedAgendaRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/apercu': {
@@ -320,6 +351,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedTableauDeBordRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/visites': {
+      id: '/_authenticated/visites'
+      path: '/visites'
+      fullPath: '/visites'
+      preLoaderRoute: typeof AuthenticatedVisitesRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/invitation/$token': {
       id: '/invitation/$token'
       path: '/invitation/$token'
@@ -367,6 +405,7 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAccueilRoute: typeof AuthenticatedAccueilRoute
+  AuthenticatedAgendaRoute: typeof AuthenticatedAgendaRoute
   AuthenticatedApercuRoute: typeof AuthenticatedApercuRoute
   AuthenticatedDossiersRoute: typeof AuthenticatedDossiersRoute
   AuthenticatedEmployeurRoute: typeof AuthenticatedEmployeurRoute
@@ -374,6 +413,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedMaJourneeRoute: typeof AuthenticatedMaJourneeRoute
   AuthenticatedMessagesRoute: typeof AuthenticatedMessagesRoute
   AuthenticatedTableauDeBordRoute: typeof AuthenticatedTableauDeBordRoute
+  AuthenticatedVisitesRoute: typeof AuthenticatedVisitesRoute
   AuthenticatedDossiersCaseIdRoute: typeof AuthenticatedDossiersCaseIdRoute
   AuthenticatedParametresEquipeRoute: typeof AuthenticatedParametresEquipeRoute
   AuthenticatedParametresImportsRoute: typeof AuthenticatedParametresImportsRoute
@@ -381,6 +421,7 @@ interface AuthenticatedRouteRouteChildren {
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAccueilRoute: AuthenticatedAccueilRoute,
+  AuthenticatedAgendaRoute: AuthenticatedAgendaRoute,
   AuthenticatedApercuRoute: AuthenticatedApercuRoute,
   AuthenticatedDossiersRoute: AuthenticatedDossiersRoute,
   AuthenticatedEmployeurRoute: AuthenticatedEmployeurRoute,
@@ -388,6 +429,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedMaJourneeRoute: AuthenticatedMaJourneeRoute,
   AuthenticatedMessagesRoute: AuthenticatedMessagesRoute,
   AuthenticatedTableauDeBordRoute: AuthenticatedTableauDeBordRoute,
+  AuthenticatedVisitesRoute: AuthenticatedVisitesRoute,
   AuthenticatedDossiersCaseIdRoute: AuthenticatedDossiersCaseIdRoute,
   AuthenticatedParametresEquipeRoute: AuthenticatedParametresEquipeRoute,
   AuthenticatedParametresImportsRoute: AuthenticatedParametresImportsRoute,
