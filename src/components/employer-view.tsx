@@ -38,7 +38,8 @@ export function EmployerView({ asCompanyId }: { asCompanyId?: string }) {
     if (then) await then();
   }, "Document envoyé");
 
-  const requests = data.cases.flatMap((c: any) => [
+  type Req = { kind: "plan" | "task"; id: string; caseId: string; worker: string; text: string; due: string | null; done: boolean; requiresDocument: boolean };
+  const requests: Req[] = data.cases.flatMap((c: any) => [
     ...c.planTasks.map((t: any) => ({ kind: "plan" as const, id: t.id, caseId: c.id, worker: c.worker, text: t.title, due: t.due as string | null, done: t.status === "DONE", requiresDocument: !!t.requiresDocument })),
     ...c.tasks.map((t: any) => ({ kind: "task" as const, id: t.id, caseId: c.id, worker: c.worker, text: t.message, due: null as string | null, done: t.status === "DONE", requiresDocument: false })),
   ]);

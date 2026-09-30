@@ -14,7 +14,7 @@ const fr = (s?: string | null) => (s ? new Date(`${s.slice(0, 10)}T12:00:00Z`).t
 const field = "rounded-md border border-input bg-background px-2 py-1 text-sm";
 
 type SaveState = "saving" | "ok" | "err";
-function Saved({ s }: { s?: SaveState }) {
+function Saved({ s }: { s?: SaveState | undefined }) {
   if (!s) return null;
   if (s === "saving") return <span className="inline-flex items-center gap-1 text-xs text-muted-foreground"><Loader2 className="h-3 w-3 animate-spin" />Enregistrement…</span>;
   if (s === "ok") return <span className="inline-flex items-center gap-1 text-xs text-primary"><Check className="h-3 w-3" />Enregistré</span>;
