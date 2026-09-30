@@ -761,6 +761,9 @@ export type Database = {
       }
       plan_tasks: {
         Row: {
+          alert_ack_at: string | null
+          alert_ack_by: string | null
+          alert_ack_note: string | null
           case_id: string
           code: string
           created_at: string
@@ -783,6 +786,9 @@ export type Database = {
           title: string
         }
         Insert: {
+          alert_ack_at?: string | null
+          alert_ack_by?: string | null
+          alert_ack_note?: string | null
           case_id: string
           code: string
           created_at?: string
@@ -805,6 +811,9 @@ export type Database = {
           title: string
         }
         Update: {
+          alert_ack_at?: string | null
+          alert_ack_by?: string | null
+          alert_ack_note?: string | null
           case_id?: string
           code?: string
           created_at?: string
@@ -1291,6 +1300,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      demo_approve_events: {
+        Args: { _actor: string; _ids: string[] }
+        Returns: undefined
+      }
       lower_document_confidentiality: {
         Args: {
           _actor: string
@@ -1311,6 +1324,7 @@ export type Database = {
         Args: { _actor: string; _doc: string }
         Returns: undefined
       }
+      reset_demo: { Args: { _actor: string }; Returns: Json }
       review_draft: {
         Args: {
           _actor: string
