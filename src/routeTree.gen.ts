@@ -14,6 +14,8 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedDossiersRouteImport } from './routes/_authenticated/dossiers'
 import { Route as AuthenticatedTableauDeBordRouteImport } from './routes/_authenticated/tableau-de-bord'
+import { Route as AuthenticatedDossiersCaseIdRouteImport } from './routes/_authenticated/dossiers_.$caseId'
+import { Route as AuthenticatedParametresEquipeRouteImport } from './routes/_authenticated/parametres.equipe'
 import { Route as AuthenticatedParametresImportsRouteImport } from './routes/_authenticated/parametres.imports'
 import { Route as ApiPublicIngestStoppagesRouteImport } from './routes/api/public/ingest/stoppages'
 
@@ -42,6 +44,18 @@ const AuthenticatedTableauDeBordRoute =
     path: '/tableau-de-bord',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedDossiersCaseIdRoute =
+  AuthenticatedDossiersCaseIdRouteImport.update({
+    id: '/dossiers_/$caseId',
+    path: '/dossiers/$caseId',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedParametresEquipeRoute =
+  AuthenticatedParametresEquipeRouteImport.update({
+    id: '/parametres/equipe',
+    path: '/parametres/equipe',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedParametresImportsRoute =
   AuthenticatedParametresImportsRouteImport.update({
     id: '/parametres/imports',
@@ -60,6 +74,8 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/dossiers': typeof AuthenticatedDossiersRoute
   '/tableau-de-bord': typeof AuthenticatedTableauDeBordRoute
+  '/dossiers/$caseId': typeof AuthenticatedDossiersCaseIdRoute
+  '/parametres/equipe': typeof AuthenticatedParametresEquipeRoute
   '/parametres/imports': typeof AuthenticatedParametresImportsRoute
   '/api/public/ingest/stoppages': typeof ApiPublicIngestStoppagesRoute
 }
@@ -68,6 +84,8 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/dossiers': typeof AuthenticatedDossiersRoute
   '/tableau-de-bord': typeof AuthenticatedTableauDeBordRoute
+  '/dossiers/$caseId': typeof AuthenticatedDossiersCaseIdRoute
+  '/parametres/equipe': typeof AuthenticatedParametresEquipeRoute
   '/parametres/imports': typeof AuthenticatedParametresImportsRoute
   '/api/public/ingest/stoppages': typeof ApiPublicIngestStoppagesRoute
 }
@@ -78,6 +96,8 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/_authenticated/dossiers': typeof AuthenticatedDossiersRoute
   '/_authenticated/tableau-de-bord': typeof AuthenticatedTableauDeBordRoute
+  '/_authenticated/dossiers_/$caseId': typeof AuthenticatedDossiersCaseIdRoute
+  '/_authenticated/parametres/equipe': typeof AuthenticatedParametresEquipeRoute
   '/_authenticated/parametres/imports': typeof AuthenticatedParametresImportsRoute
   '/api/public/ingest/stoppages': typeof ApiPublicIngestStoppagesRoute
 }
@@ -88,6 +108,8 @@ export interface FileRouteTypes {
     | '/auth'
     | '/dossiers'
     | '/tableau-de-bord'
+    | '/dossiers/$caseId'
+    | '/parametres/equipe'
     | '/parametres/imports'
     | '/api/public/ingest/stoppages'
   fileRoutesByTo: FileRoutesByTo
@@ -96,6 +118,8 @@ export interface FileRouteTypes {
     | '/auth'
     | '/dossiers'
     | '/tableau-de-bord'
+    | '/dossiers/$caseId'
+    | '/parametres/equipe'
     | '/parametres/imports'
     | '/api/public/ingest/stoppages'
   id:
@@ -105,6 +129,8 @@ export interface FileRouteTypes {
     | '/auth'
     | '/_authenticated/dossiers'
     | '/_authenticated/tableau-de-bord'
+    | '/_authenticated/dossiers_/$caseId'
+    | '/_authenticated/parametres/equipe'
     | '/_authenticated/parametres/imports'
     | '/api/public/ingest/stoppages'
   fileRoutesById: FileRoutesById
@@ -153,6 +179,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedTableauDeBordRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/dossiers_/$caseId': {
+      id: '/_authenticated/dossiers_/$caseId'
+      path: '/dossiers/$caseId'
+      fullPath: '/dossiers/$caseId'
+      preLoaderRoute: typeof AuthenticatedDossiersCaseIdRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/parametres/equipe': {
+      id: '/_authenticated/parametres/equipe'
+      path: '/parametres/equipe'
+      fullPath: '/parametres/equipe'
+      preLoaderRoute: typeof AuthenticatedParametresEquipeRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/parametres/imports': {
       id: '/_authenticated/parametres/imports'
       path: '/parametres/imports'
@@ -173,12 +213,16 @@ declare module '@tanstack/react-router' {
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedDossiersRoute: typeof AuthenticatedDossiersRoute
   AuthenticatedTableauDeBordRoute: typeof AuthenticatedTableauDeBordRoute
+  AuthenticatedDossiersCaseIdRoute: typeof AuthenticatedDossiersCaseIdRoute
+  AuthenticatedParametresEquipeRoute: typeof AuthenticatedParametresEquipeRoute
   AuthenticatedParametresImportsRoute: typeof AuthenticatedParametresImportsRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDossiersRoute: AuthenticatedDossiersRoute,
   AuthenticatedTableauDeBordRoute: AuthenticatedTableauDeBordRoute,
+  AuthenticatedDossiersCaseIdRoute: AuthenticatedDossiersCaseIdRoute,
+  AuthenticatedParametresEquipeRoute: AuthenticatedParametresEquipeRoute,
   AuthenticatedParametresImportsRoute: AuthenticatedParametresImportsRoute,
 }
 

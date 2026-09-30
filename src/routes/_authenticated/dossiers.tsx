@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { listCases } from "@/lib/imports.functions";
@@ -66,7 +66,9 @@ function CasesPage() {
             {data?.map((row: any) => (
               <tr key={row.id} className="border-b border-border last:border-0">
                 <td className="px-4 py-3 font-medium">
-                  {row.workers?.last_name} {row.workers?.first_name}
+                  <Link to="/dossiers/$caseId" params={{ caseId: row.id }} className="text-primary hover:underline">
+                    {row.workers?.last_name} {row.workers?.first_name}
+                  </Link>
                 </td>
                 <td className="px-4 py-3 text-muted-foreground">{row.companies?.name}</td>
                 <td className="px-4 py-3 text-muted-foreground">{ORIGIN_LABELS[row.origin] ?? "—"}</td>

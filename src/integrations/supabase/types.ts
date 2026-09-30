@@ -14,6 +14,69 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_drafts: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          approved_text: string | null
+          case_id: string
+          confidentiality: Database["public"]["Enums"]["confidentiality"]
+          created_at: string
+          created_by: string | null
+          draft_text: string
+          id: string
+          kind: string
+          required_role: string
+          status: Database["public"]["Enums"]["review_status"]
+          tenant_id: string
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          approved_text?: string | null
+          case_id: string
+          confidentiality: Database["public"]["Enums"]["confidentiality"]
+          created_at?: string
+          created_by?: string | null
+          draft_text: string
+          id?: string
+          kind: string
+          required_role?: string
+          status?: Database["public"]["Enums"]["review_status"]
+          tenant_id: string
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          approved_text?: string | null
+          case_id?: string
+          confidentiality?: Database["public"]["Enums"]["confidentiality"]
+          created_at?: string
+          created_by?: string | null
+          draft_text?: string
+          id?: string
+          kind?: string
+          required_role?: string
+          status?: Database["public"]["Enums"]["review_status"]
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_drafts_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "cases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_drafts_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       api_keys: {
         Row: {
           created_at: string
@@ -48,6 +111,114 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "api_keys_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      audit_log: {
+        Row: {
+          action: string
+          case_id: string | null
+          created_at: string
+          entity: string
+          entity_id: string | null
+          id: number
+          tenant_id: string
+          user_id: string
+        }
+        Insert: {
+          action: string
+          case_id?: string | null
+          created_at?: string
+          entity: string
+          entity_id?: string | null
+          id?: number
+          tenant_id: string
+          user_id: string
+        }
+        Update: {
+          action?: string
+          case_id?: string | null
+          created_at?: string
+          entity?: string
+          entity_id?: string | null
+          id?: number
+          tenant_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "audit_log_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      case_events: {
+        Row: {
+          case_id: string
+          confidentiality: Database["public"]["Enums"]["confidentiality"]
+          created_at: string
+          event_date: string | null
+          id: string
+          label: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          source_document_id: string | null
+          source_page: number | null
+          status: Database["public"]["Enums"]["review_status"]
+          tenant_id: string
+        }
+        Insert: {
+          case_id: string
+          confidentiality?: Database["public"]["Enums"]["confidentiality"]
+          created_at?: string
+          event_date?: string | null
+          id?: string
+          label: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          source_document_id?: string | null
+          source_page?: number | null
+          status?: Database["public"]["Enums"]["review_status"]
+          tenant_id: string
+        }
+        Update: {
+          case_id?: string
+          confidentiality?: Database["public"]["Enums"]["confidentiality"]
+          created_at?: string
+          event_date?: string | null
+          id?: string
+          label?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          source_document_id?: string | null
+          source_page?: number | null
+          status?: Database["public"]["Enums"]["review_status"]
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "case_events_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "cases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "case_events_source_document_id_fkey"
+            columns: ["source_document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "case_events_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -147,6 +318,129 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "companies_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      coordination_tasks: {
+        Row: {
+          case_id: string
+          channel: string
+          created_at: string
+          due_at: string | null
+          escalated_reason: string | null
+          id: string
+          message: string
+          purpose: string
+          recipient: string
+          sent_at: string | null
+          status: string
+          tenant_id: string
+        }
+        Insert: {
+          case_id: string
+          channel?: string
+          created_at?: string
+          due_at?: string | null
+          escalated_reason?: string | null
+          id?: string
+          message: string
+          purpose: string
+          recipient: string
+          sent_at?: string | null
+          status?: string
+          tenant_id: string
+        }
+        Update: {
+          case_id?: string
+          channel?: string
+          created_at?: string
+          due_at?: string | null
+          escalated_reason?: string | null
+          id?: string
+          message?: string
+          purpose?: string
+          recipient?: string
+          sent_at?: string | null
+          status?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coordination_tasks_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "cases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coordination_tasks_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      documents: {
+        Row: {
+          analysis_status: string
+          case_id: string
+          confidentiality: Database["public"]["Enums"]["confidentiality"]
+          created_at: string
+          doc_type: string
+          extracted_text: string | null
+          filename: string
+          id: string
+          mime_type: string | null
+          page_count: number | null
+          storage_path: string
+          tenant_id: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          analysis_status?: string
+          case_id: string
+          confidentiality?: Database["public"]["Enums"]["confidentiality"]
+          created_at?: string
+          doc_type?: string
+          extracted_text?: string | null
+          filename: string
+          id?: string
+          mime_type?: string | null
+          page_count?: number | null
+          storage_path: string
+          tenant_id: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          analysis_status?: string
+          case_id?: string
+          confidentiality?: Database["public"]["Enums"]["confidentiality"]
+          created_at?: string
+          doc_type?: string
+          extracted_text?: string | null
+          filename?: string
+          id?: string
+          mime_type?: string | null
+          page_count?: number | null
+          storage_path?: string
+          tenant_id?: string
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "documents_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "cases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documents_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -304,21 +598,18 @@ export type Database = {
         Row: {
           created_at: string
           full_name: string | null
-          role: Database["public"]["Enums"]["app_role"]
           tenant_id: string
           user_id: string
         }
         Insert: {
           created_at?: string
           full_name?: string | null
-          role?: Database["public"]["Enums"]["app_role"]
           tenant_id: string
           user_id: string
         }
         Update: {
           created_at?: string
           full_name?: string | null
-          role?: Database["public"]["Enums"]["app_role"]
           tenant_id?: string
           user_id?: string
         }
@@ -349,6 +640,38 @@ export type Database = {
           name?: string
         }
         Relationships: []
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          tenant_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          tenant_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          tenant_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_roles_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       work_stoppages: {
         Row: {
@@ -476,7 +799,12 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      can_read_level: {
+        Args: { _level: Database["public"]["Enums"]["confidentiality"] }
+        Returns: boolean
+      }
       current_tenant_id: { Args: never; Returns: string }
+      has_role_text: { Args: { _role: string }; Returns: boolean }
     }
     Enums: {
       app_role:
@@ -486,7 +814,15 @@ export type Database = {
         | "SPSTI_ADMIN"
         | "EMPLOYER_HR"
         | "WORKER"
+        | "EXPERT"
       case_status: "OPEN" | "CLOSED"
+      confidentiality:
+        | "MEDICAL"
+        | "PDP_SHARED"
+        | "ADMINISTRATIVE"
+        | "EMPLOYER_VISIBLE"
+        | "WORKER_VISIBLE"
+      review_status: "DRAFT" | "APPROVED" | "REJECTED"
       stoppage_kind: "INITIAL" | "PROLONGATION"
       stoppage_origin: "MALADIE" | "AT" | "MP"
     }
@@ -623,8 +959,17 @@ export const Constants = {
         "SPSTI_ADMIN",
         "EMPLOYER_HR",
         "WORKER",
+        "EXPERT",
       ],
       case_status: ["OPEN", "CLOSED"],
+      confidentiality: [
+        "MEDICAL",
+        "PDP_SHARED",
+        "ADMINISTRATIVE",
+        "EMPLOYER_VISIBLE",
+        "WORKER_VISIBLE",
+      ],
+      review_status: ["DRAFT", "APPROVED", "REJECTED"],
       stoppage_kind: ["INITIAL", "PROLONGATION"],
       stoppage_origin: ["MALADIE", "AT", "MP"],
     },
