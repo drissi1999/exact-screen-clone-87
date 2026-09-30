@@ -88,10 +88,10 @@ run("Plan de retour (live database)", () => {
     const j7 = tasks.find((t: any) => t.kind === "FOLLOWUP" && t.due_date === "2026-09-08");
     await expect(completePlanTask(admin, coord, { taskId: j7.id })).rejects.toThrow("résultat");
     await completePlanTask(admin, coord, { taskId: j7.id, outcome: "RECHUTE" });
-    const day = await buildMyDay(admin, coord, "2026-09-30");
+    const day = await buildMyDay(admin, coord, "2026-10-02");
     const row = day.groups.PLAN_ALERTES.find((r) => r.caseId === caseId);
     expect(row?.reason).toContain("rechute");
-    // Overdue plan tasks are listed too.
+    // The J+30 follow-up (due 01/10) is overdue on 02/10.
     expect(day.groups.PLAN_TACHES.some((r) => r.caseId === caseId)).toBe(true);
   });
 });
