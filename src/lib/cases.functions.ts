@@ -4,7 +4,9 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { computeDeadlines, maxConfidentiality, todayParis } from "./rules";
 import { canManageRole, refusalMessage } from "./role-policy";
 import { renderTemplate, type TemplateCode } from "./message-templates";
-import { loadCaseFacts } from "./case-facts.server";
+import { loadCaseFacts, insertAvis } from "./case-facts.server";
+import { approvedFacts, factsPrompt, verifyCitations, SUMMARY_MODEL, type SummaryEvent } from "./summary";
+import { assertAcceptedFile } from "./file-signature";
 
 const CONF = z.enum(["MEDICAL", "PDP_SHARED", "ADMINISTRATIVE", "EMPLOYER_VISIBLE", "WORKER_VISIBLE"]);
 const ROLE = z.enum(["MEDECIN_TRAVAIL", "IDEST", "PDP_COORDINATOR", "SPSTI_ADMIN", "EMPLOYER_HR", "WORKER", "EXPERT"]);
@@ -44,7 +46,7 @@ async function callLLM(messages: unknown[], json = true): Promise<string> {
     method: "POST",
     headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
     body: JSON.stringify({
-      model: "google/gemini-2.5-flash",
+      model: SUMMARY_MODEL,
       messages,
       ...(json ? { response_format: { type: "json_object" } } : {}),
     }),
@@ -290,25 +292,25 @@ export const generateSummary = createServerFn({ method: "POST" })
     const tenantId = await tenantOf(sb, context.userId);
     const { data: items, error: itemsErr } = await (await db()).rpc("staff_case_items", { _actor: context.userId, _case: data.caseId });
     if (itemsErr) throw new Error("Accès refusé");
-    const events = (items.events as any[]).filter((e) => e.status !== "REJECTED").map((e) => ({ ...e, documents: { filename: e.source_filename } }));
-    if (!events?.length) throw new Error("Aucun fait dans la chronologie. Analysez d'abord des documents.");
-    const conf = maxConfidentiality(events.map((e: any) => e.confidentiality));
-    const facts = events.map((e: any, i: number) => `${i + 1}. ${e.event_date ?? "date à vérifier"} — ${e.label} [source: ${e.documents?.filename ?? "?"}, p.${e.source_page ?? "?"}]${e.status === "DRAFT" ? " (non validé)" : ""}`).join("\n");
-    const text = await callLLM(
+    const facts = approvedFacts(items.events as SummaryEvent[]);
+    if (!facts.length) return { ok: false, reason: "Aucun fait validé : validez d'abord des faits de la chronologie pour générer une synthèse." };
+    const conf = maxConfidentiality(facts.map((f) => f.confidentiality as any));
+    await assertCanWrite(context.userId, data.caseId, conf);
+    const raw = await callLLM(
       [
-        { role: "system", content: "Tu rédiges des synthèses de dossiers de maintien en emploi pour un médecin du travail. Français, factuel, concis. Chaque fait cite sa source entre crochets [fichier, p.X]. Si une information manque ou est incertaine, écris « à vérifier ». Aucun conseil médical, aucun diagnostic nouveau." },
-        { role: "user", content: `Faits sourcés:\n${facts}\n\nRédige une synthèse structurée (Contexte, Chronologie clé, Points à vérifier).` },
+        { role: "system", content: "Tu rédiges des synthèses de dossiers de maintien en emploi pour un médecin du travail. Français, factuel, concis. Chaque phrase se termine par la citation exacte de sa source, recopiée telle quelle depuis la liste, par exemple [fichier.pdf, p.2]. N'utilise que les faits fournis. Aucun conseil médical, aucun diagnostic nouveau." },
+        { role: "user", content: `Faits validés:\n${factsPrompt(facts)}\n\nRédige une synthèse structurée avec les titres « Contexte » et « Chronologie clé ». N'écris pas de section « Points à vérifier ».` },
       ],
       false,
     );
-    await assertCanWrite(context.userId, data.caseId, conf);
+    const { text, flagged } = verifyCitations(raw, facts);
     const { data: row } = await (await db())
       .from("ai_drafts")
-      .insert({ tenant_id: tenantId, case_id: data.caseId, kind: "SYNTHESE", confidentiality: conf, draft_text: text, required_role: conf === "MEDICAL" ? "MEDECIN_TRAVAIL" : "PDP_COORDINATOR", created_by: context.userId })
+      .insert({ tenant_id: tenantId, case_id: data.caseId, kind: "SYNTHESE", confidentiality: conf, draft_text: text, required_role: conf === "MEDICAL" ? "MEDECIN_TRAVAIL" : "PDP_COORDINATOR", created_by: context.userId, source_fact_ids: facts.map((f) => f.id), model: SUMMARY_MODEL })
       .select("id")
       .single();
     await audit(sb, tenantId, context.userId, "AI_DRAFT", "ai_drafts", row?.id ?? null, data.caseId);
-    return { ok: true };
+    return { ok: true, reason: flagged.length ? `${flagged.length} phrase(s) sans source valide déplacée(s) dans « Points à vérifier ».` : "" };
   });
 
 /** Employer-facing notice: template-only, never receives medical fields. */
