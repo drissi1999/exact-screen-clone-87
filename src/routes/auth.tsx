@@ -31,7 +31,7 @@ function AuthPage() {
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
-      if (data.session) navigate({ to: "/tableau-de-bord", replace: true });
+      if (data.session) navigate({ to: "/accueil", replace: true });
     });
   }, [navigate]);
 
@@ -43,16 +43,16 @@ function AuthPage() {
         const { error } = await supabase.auth.signUp({
           email,
           password,
-          options: { emailRedirectTo: `${window.location.origin}/tableau-de-bord` },
+          options: { emailRedirectTo: `${window.location.origin}/accueil` },
         });
         if (error) throw error;
         toast.success("Compte créé. Vérifiez votre boîte mail si une confirmation est demandée.");
         const { data } = await supabase.auth.getSession();
-        if (data.session) navigate({ to: "/tableau-de-bord" });
+        if (data.session) navigate({ to: "/accueil" });
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
-        navigate({ to: "/tableau-de-bord" });
+        navigate({ to: "/accueil" });
       }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Connexion impossible");
@@ -68,7 +68,7 @@ function AuthPage() {
       return;
     }
     if (result.redirected) return;
-    navigate({ to: "/tableau-de-bord" });
+    navigate({ to: "/accueil" });
   }
 
   return (
