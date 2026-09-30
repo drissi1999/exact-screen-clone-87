@@ -73,9 +73,19 @@ function ImportsPage() {
       const buffer = await file.arrayBuffer();
       setFileHash(await sha256(Array.from(new Uint8Array(buffer.slice(0, 200000))).join(",")));
       const XLSX = await import("xlsx");
-      const workbook = XLSX.read(buffer, { cellDates: false });
+      // CSV files are decoded explicitly as UTF-8: the spreadsheet reader would
+      // otherwise fall back to a legacy codepage and mangle accented characters.
+      const isCsv = /\.csv$/i.test(file.name) || file.type === "text/csv";
+      const workbook = isCsv
+        ? XLSX.read(new TextDecoder("utf-8").decode(buffer).replace(/^\uFEFF/, ""), {
+            type: "string",
+            raw: true,
+            cellDates: false,
+          })
+        : XLSX.read(buffer, { cellDates: false });
       const sheet = workbook.Sheets[workbook.SheetNames[0]!]!;
       const parsed = XLSX.utils.sheet_to_json<Row>(sheet, { defval: "", raw: true });
+
       if (!parsed.length) throw new Error("Le fichier ne contient aucune ligne.");
       const cols = Object.keys(parsed[0]!);
       setFilename(file.name);
