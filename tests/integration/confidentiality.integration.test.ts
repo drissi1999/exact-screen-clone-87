@@ -67,7 +67,8 @@ run("confidentiality and templated coordination (live database)", () => {
     expect(portal.cases[0].documents.map((d: any) => d.id)).toContain(doc.id);
 
     // What analyzeDocument writes after AI classification.
-    await admin.from("documents").update({ doc_type: "COMPTE_RENDU", analysis_status: "DONE" }).eq("id", doc.id);
+    const cls = await admin.from("documents").update({ doc_type: "COMPTE_RENDU", analysis_status: "DONE" }).eq("id", doc.id);
+    expect(cls.error).toBeNull();
     const late = (await admin.from("case_events").insert({ tenant_id: tenant, case_id: caseId, label: "fait tardif", confidentiality: "EMPLOYER_VISIBLE", source_document_id: doc.id }).select("id").single()).data;
 
     expect((await admin.from("documents").select("confidentiality").eq("id", doc.id).single()).data.confidentiality).toBe("MEDICAL");
