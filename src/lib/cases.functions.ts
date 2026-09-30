@@ -436,3 +436,16 @@ export const lowerDocumentConfidentiality = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message.includes("role") ? "Seul le médecin du travail peut abaisser la confidentialité" : "Changement refusé");
     return { ok: true };
   });
+
+/** Publish a staff document to the employer/worker portal: MEDECIN_TRAVAIL or IDEST, checked and logged in public.release_document. */
+export const releaseDocument = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ documentId: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { error } = await (await db()).rpc("release_document", { _actor: context.userId, _doc: data.documentId });
+    if (error) {
+      const m = error.message;
+      throw new Error(m.includes("role") ? "Seuls le médecin du travail et l'IDEST peuvent publier" : m.includes("analysis") ? "Analyse non terminée : publication impossible" : "Ce document ne peut pas être publié");
+    }
+    return { ok: true };
+  });

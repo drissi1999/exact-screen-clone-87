@@ -242,8 +242,8 @@ export const getEmployerDocUrl = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { tenantId, companyId } = await employerContext(context.supabase, context.userId);
     const db = await admin();
-    const { data: doc } = await db.from("documents").select("id, case_id, storage_path, confidentiality, cases(company_id)").eq("id", data.documentId).maybeSingle();
-    const allowed = doc && doc.confidentiality === "EMPLOYER_VISIBLE" && doc.cases?.company_id === companyId;
+    const { data: doc } = await db.from("documents").select(`storage_path, ${PORTAL_DOC_COLUMNS}, cases(company_id)`).eq("id", data.documentId).maybeSingle();
+    const allowed = doc && doc.cases?.company_id === companyId && visibleInPortal(doc, "EMPLOYER");
     await audit(db, { tenant_id: tenantId, user_id: context.userId, action: allowed ? "DOWNLOAD" : "DENIED", entity: "documents", entity_id: data.documentId, case_id: allowed ? doc.case_id : null });
     if (!allowed) throw new Error("Accès refusé");
     const { data: signed } = await db.storage.from("case-documents").createSignedUrl(doc.storage_path, 120);
