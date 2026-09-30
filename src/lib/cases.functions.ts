@@ -199,9 +199,20 @@ export const registerDocument = createServerFn({ method: "POST" })
     const tenantId = await tenantOf(sb, context.userId);
     if (!data.storagePath.startsWith(`${tenantId}/${data.caseId}/`)) throw new Error("Chemin invalide");
     await assertCanWrite(context.userId, data.caseId, data.confidentiality);
-    const { data: row, error } = await (await db())
+    const admin = await db();
+    // Real content check (magic bytes) on what was actually stored; refused files are deleted.
+    const { data: blob } = await admin.storage.from("case-documents").download(data.storagePath);
+    if (!blob) throw new Error("Fichier introuvable");
+    let mime: string;
+    try {
+      mime = assertAcceptedFile(new Uint8Array(await blob.slice(0, 16).arrayBuffer()));
+    } catch (e) {
+      await admin.storage.from("case-documents").remove([data.storagePath]);
+      throw e;
+    }
+    const { data: row, error } = await admin
       .from("documents")
-      .insert({ tenant_id: tenantId, case_id: data.caseId, filename: data.filename, storage_path: data.storagePath, mime_type: data.mimeType, confidentiality: data.confidentiality, uploaded_by: context.userId })
+      .insert({ tenant_id: tenantId, case_id: data.caseId, filename: data.filename, storage_path: data.storagePath, mime_type: mime, confidentiality: data.confidentiality, uploaded_by: context.userId })
       .select("id")
       .single();
     if (error) throw new Error(error.message);
@@ -478,14 +489,6 @@ export const addAvis = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ caseId: z.string().uuid(), type: z.enum(["APTITUDE", "APTITUDE_AMENAGEMENTS", "INAPTITUDE"]), date: ISO_DATE }).parse(d))
   .handler(async ({ data, context }) => {
-    const admin = await db();
-    const { data: c } = await admin.from("cases").select("tenant_id").eq("id", data.caseId).maybeSingle();
-    if (!c) throw new Error("Dossier introuvable");
-    const { data: ok } = await admin.rpc("can_write_case", { _actor: context.userId, _case: data.caseId, _level: "ADMINISTRATIVE" });
-    const { data: roles } = await admin.from("user_roles").select("role").eq("user_id", context.userId).eq("tenant_id", c.tenant_id).eq("role", "MEDECIN_TRAVAIL");
-    if (ok !== true || !(roles ?? []).length) throw new Error("Seul le médecin du travail peut saisir un avis");
-    const { data: row, error } = await admin.from("case_avis").insert({ tenant_id: c.tenant_id, case_id: data.caseId, avis_type: data.type, avis_date: data.date, created_by: context.userId }).select("id").single();
-    if (error) throw new Error("Enregistrement impossible");
-    await audit(null, c.tenant_id, context.userId, "AVIS_CREATE", "case_avis", row.id, data.caseId);
+    await insertAvis(await db(), context.userId, data.caseId, data.type, data.date);
     return { ok: true };
   });
