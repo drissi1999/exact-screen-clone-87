@@ -137,6 +137,7 @@ export async function completePlanTask(db: any, userId: string, i: { taskId: str
   if (!t) throw new Error("Tâche introuvable");
   await assertPlanEditor(db, userId, t.case_id);
   if (t.status === "DONE") throw new Error("Tâche déjà terminée");
+  if (t.kind === "MILESTONE" && FOLLOWUP_CODES.includes(t.code)) throw new Error("Ce point de suivi sera planifié à la reprise effective");
   if (t.kind === "FOLLOWUP" && !i.outcome) throw new Error("Indiquez le résultat du suivi");
   if (t.requires_document) {
     if (!i.documentId) throw new Error("Cette tâche nécessite un document");

@@ -128,6 +128,8 @@ export function ReturnPlanTab({ caseId, documents, canEdit }: { caseId: string; 
             </div>
             {t.status === "DONE" ? (
               <Badge variant={t.outcome && t.outcome !== "MAINTENU" ? "destructive" : "secondary"}>Terminé{t.outcome ? ` — ${OUTCOME_LABELS[t.outcome as Outcome]}` : ""}</Badge>
+            ) : t.kind === "MILESTONE" && t.code.startsWith("POINT_") ? (
+              <span className="text-xs text-muted-foreground">Recalculé à la reprise effective</span>
             ) : canEdit && (
               <div className="flex flex-wrap items-center gap-2">
                 {t.requires_document && (
