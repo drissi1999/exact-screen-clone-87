@@ -26,8 +26,9 @@ async function myProfile(sb: any, userId: string) {
   if (!data) throw new Error("Profil introuvable");
   return data as { tenant_id: string; company_id: string | null; full_name: string | null };
 }
-async function audit(db: any, row: { tenant_id: string; user_id: string; action: string; entity: string; entity_id?: string | null; case_id?: string | null }) {
-  await db.from("audit_log").insert({ entity_id: null, case_id: null, ...row });
+/** Audit rows are written with the admin client only; clients have no insert right. */
+async function audit(_db: any, row: { tenant_id: string; user_id: string; action: string; entity: string; entity_id?: string | null; case_id?: string | null }) {
+  await (await admin()).from("audit_log").insert({ entity_id: null, case_id: null, ...row });
 }
 function decodeBase64(b64: string) {
   const bin = atob(b64);

@@ -16,9 +16,23 @@ async function hasRole(sb: any, role: string, userId: string): Promise<boolean> 
   const { data } = await sb.from("user_roles").select("role").eq("user_id", userId).eq("role", role).limit(1);
   return (data ?? []).length > 0;
 }
-/** Append-only audit trail. Stores ids only, never health data. */
-async function audit(sb: any, tenantId: string, userId: string, action: string, entity: string, entityId: string | null, caseId: string | null) {
-  await sb.from("audit_log").insert({ tenant_id: tenantId, user_id: userId, action, entity, entity_id: entityId, case_id: caseId });
+async function db(): Promise<any> {
+  return (await import("@/integrations/supabase/client.server")).supabaseAdmin;
+}
+/** Can the caller write rows of this level on this case? Decided in the database (public.can_write_case). */
+async function assertCanWrite(userId: string, caseId: string, level: string) {
+  const { data } = await (await db()).rpc("can_write_case", { _actor: userId, _case: caseId, _level: level });
+  if (data !== true) throw new Error("Accès refusé");
+}
+/** Audited document read (public.staff_document writes the audit row). */
+async function readDocument(userId: string, documentId: string, purpose: "READ" | "DOWNLOAD" | "AI_ANALYZE"): Promise<any> {
+  const { data, error } = await (await db()).rpc("staff_document", { _actor: userId, _doc: documentId, _purpose: purpose });
+  if (error || !data) throw new Error("Accès refusé");
+  return data;
+}
+/** Append-only audit trail, written server-side only. Stores ids only, never health data. */
+async function audit(_sb: any, tenantId: string, userId: string, action: string, entity: string, entityId: string | null, caseId: string | null) {
+  await (await db()).from("audit_log").insert({ tenant_id: tenantId, user_id: userId, action, entity, entity_id: entityId, case_id: caseId });
 }
 
 async function callLLM(messages: unknown[], json = true): Promise<string> {
@@ -138,21 +152,15 @@ export const getCaseDetail = createServerFn({ method: "GET" })
       .eq("id", data.caseId)
       .maybeSingle();
     if (!c) throw new Error("Dossier introuvable");
-    const [st, docs, ev, dr, tasks] = await Promise.all([
+    const [st, items, tasks] = await Promise.all([
       sb.from("work_stoppages").select("start_date, end_date, origin, kind").eq("worker_id", c.worker_id).order("start_date"),
-      sb.from("documents").select("id, filename, doc_type, confidentiality, page_count, analysis_status, created_at").eq("case_id", c.id).order("created_at", { ascending: false }),
-      sb.from("case_events").select("id, event_date, label, source_document_id, source_page, confidentiality, status").eq("case_id", c.id).order("event_date", { ascending: true, nullsFirst: false }),
-      sb.from("ai_drafts").select("id, kind, confidentiality, draft_text, approved_text, status, required_role, approved_at, created_at").eq("case_id", c.id).order("created_at", { ascending: false }),
+      // Documents, events and drafts at every level the caller may read; MEDICAL reads are audited in the database.
+      db().then((a) => a.rpc("staff_case_items", { _actor: context.userId, _case: c.id })),
       sb.from("coordination_tasks").select("id, recipient, channel, purpose, message, status, due_at, sent_at, escalated_reason").eq("case_id", c.id).order("created_at", { ascending: false }),
     ]);
+    if (items.error) throw new Error("Accès refusé");
     const stoppages = st.data ?? [];
-    const tenantId = await tenantOf(sb, context.userId);
-    const medicalDocs = (docs.data ?? []).filter((d: any) => d.confidentiality === "MEDICAL");
-    for (const d of medicalDocs) await audit(sb, tenantId, context.userId, "READ", "documents", d.id, c.id);
-    if ((ev.data ?? []).some((e: any) => e.confidentiality === "MEDICAL"))
-      await audit(sb, tenantId, context.userId, "READ", "case_events", null, c.id);
-    for (const d of (dr.data ?? []).filter((x: any) => x.confidentiality === "MEDICAL"))
-      await audit(sb, tenantId, context.userId, "READ", "ai_drafts", d.id, c.id);
+    const docs = { data: items.data.documents }, ev = { data: items.data.events }, dr = { data: items.data.drafts };
 
     return {
       case: {
@@ -183,8 +191,9 @@ export const registerDocument = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const sb = context.supabase as any;
     const tenantId = await tenantOf(sb, context.userId);
-    if (!data.storagePath.startsWith(`${tenantId}/`)) throw new Error("Chemin invalide");
-    const { data: row, error } = await sb
+    if (!data.storagePath.startsWith(`${tenantId}/${data.caseId}/`)) throw new Error("Chemin invalide");
+    await assertCanWrite(context.userId, data.caseId, data.confidentiality);
+    const { data: row, error } = await (await db())
       .from("documents")
       .insert({ tenant_id: tenantId, case_id: data.caseId, filename: data.filename, storage_path: data.storagePath, mime_type: data.mimeType, confidentiality: data.confidentiality, uploaded_by: context.userId })
       .select("id")
@@ -202,9 +211,10 @@ export const analyzeDocument = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const sb = context.supabase as any;
     const tenantId = await tenantOf(sb, context.userId);
-    const { data: doc } = await sb.from("documents").select("*").eq("id", data.documentId).maybeSingle();
-    if (!doc) throw new Error("Document introuvable");
-    const { data: blob, error } = await sb.storage.from("case-documents").download(doc.storage_path);
+    const doc = await readDocument(context.userId, data.documentId, "AI_ANALYZE");
+    await assertCanWrite(context.userId, doc.case_id, doc.confidentiality);
+    const admin = await db();
+    const { data: blob, error } = await admin.storage.from("case-documents").download(doc.storage_path);
     if (error || !blob) throw new Error("Fichier illisible");
     const buf = new Uint8Array(await blob.arrayBuffer());
     const mime = doc.mime_type || "application/octet-stream";
@@ -220,17 +230,17 @@ export const analyzeDocument = createServerFn({ method: "POST" })
     const prompt = `Tu es un assistant d'un service de prévention et de santé au travail. Lis ce document (OCR si besoin, en français).
 Réponds en JSON strict: {"doc_type": un parmi ${JSON.stringify(DOC_TYPES)}, "page_count": nombre, "text": transcription brute (max 8000 caractères), "events": [{"date": "YYYY-MM-DD" ou null, "label": fait court et factuel, "page": numéro de page}]}.
 Règles: n'invente rien; si une date est incertaine mets null; aucun conseil médical; les faits doivent provenir du document.`;
-    await sb.from("documents").update({ analysis_status: "RUNNING" }).eq("id", doc.id);
+    await admin.from("documents").update({ analysis_status: "RUNNING" }).eq("id", doc.id);
     let parsed: any;
     try {
       const raw = await callLLM([{ role: "user", content: [{ type: "text", text: prompt }, part] }]);
       parsed = JSON.parse(raw.replace(/^```json\s*|```$/g, ""));
     } catch (e) {
-      await sb.from("documents").update({ analysis_status: "FAILED" }).eq("id", doc.id);
+      await admin.from("documents").update({ analysis_status: "FAILED" }).eq("id", doc.id);
       throw e instanceof Error ? e : new Error("Analyse impossible");
     }
     const docType = DOC_TYPES.includes(parsed.doc_type) ? parsed.doc_type : "AUTRE";
-    await sb
+    await admin
       .from("documents")
       .update({ doc_type: docType, page_count: Number(parsed.page_count) || null, extracted_text: String(parsed.text ?? "").slice(0, 20000), analysis_status: "DONE" })
       .eq("id", doc.id);
@@ -243,8 +253,7 @@ Règles: n'invente rien; si une date est incertaine mets null; aucun conseil mé
       source_page: Number(e.page) || null,
       confidentiality: doc.confidentiality,
     }));
-    if (events.length) await sb.from("case_events").insert(events);
-    await audit(sb, tenantId, context.userId, "AI_ANALYZE", "documents", doc.id, doc.case_id);
+    if (events.length) await admin.from("case_events").insert(events);
     return { docType, events: events.length };
   });
 
@@ -252,11 +261,8 @@ export const getDocumentUrl = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ documentId: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
-    const sb = context.supabase as any;
-    const { data: doc } = await sb.from("documents").select("id, case_id, storage_path, confidentiality").eq("id", data.documentId).maybeSingle();
-    if (!doc) throw new Error("Accès refusé");
-    const { data: signed } = await sb.storage.from("case-documents").createSignedUrl(doc.storage_path, 120);
-    await audit(sb, await tenantOf(sb, context.userId), context.userId, "DOWNLOAD", "documents", doc.id, doc.case_id);
+    const doc = await readDocument(context.userId, data.documentId, "DOWNLOAD");
+    const { data: signed } = await (await db()).storage.from("case-documents").createSignedUrl(doc.storage_path, 120);
     return { url: (signed?.signedUrl ?? "") as string };
   });
 
@@ -264,13 +270,9 @@ export const reviewEvent = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ eventId: z.string().uuid(), status: z.enum(["APPROVED", "REJECTED"]) }).parse(d))
   .handler(async ({ data, context }) => {
-    const sb = context.supabase as any;
-    const { data: ev } = await sb.from("case_events").select("id, case_id, confidentiality").eq("id", data.eventId).maybeSingle();
-    if (!ev) throw new Error("Événement introuvable");
-    if (ev.confidentiality === "MEDICAL" && !(await hasRole(sb, "MEDECIN_TRAVAIL", context.userId)) && !(await hasRole(sb, "IDEST", context.userId)))
-      throw new Error("Validation réservée au médecin du travail ou à l'IDEST");
-    await sb.from("case_events").update({ status: data.status, reviewed_by: context.userId, reviewed_at: new Date().toISOString() }).eq("id", ev.id);
-    await audit(sb, await tenantOf(sb, context.userId), context.userId, `EVENT_${data.status}`, "case_events", ev.id, ev.case_id);
+    // Role check, update and audit happen together in public.review_event.
+    const { error } = await (await db()).rpc("review_event", { _event: data.eventId, _actor: context.userId, _status: data.status });
+    if (error) throw new Error(error.message.includes("role") ? "Vous n'avez pas le rôle requis pour valider ce fait" : "Événement introuvable");
     return { ok: true };
   });
 
@@ -282,12 +284,9 @@ export const generateSummary = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const sb = context.supabase as any;
     const tenantId = await tenantOf(sb, context.userId);
-    const { data: events } = await sb
-      .from("case_events")
-      .select("event_date, label, source_page, confidentiality, status, documents(filename)")
-      .eq("case_id", data.caseId)
-      .neq("status", "REJECTED")
-      .order("event_date");
+    const { data: items, error: itemsErr } = await (await db()).rpc("staff_case_items", { _actor: context.userId, _case: data.caseId });
+    if (itemsErr) throw new Error("Accès refusé");
+    const events = (items.events as any[]).filter((e) => e.status !== "REJECTED").map((e) => ({ ...e, documents: { filename: e.source_filename } }));
     if (!events?.length) throw new Error("Aucun fait dans la chronologie. Analysez d'abord des documents.");
     const conf = maxConfidentiality(events.map((e: any) => e.confidentiality));
     const facts = events.map((e: any, i: number) => `${i + 1}. ${e.event_date ?? "date à vérifier"} — ${e.label} [source: ${e.documents?.filename ?? "?"}, p.${e.source_page ?? "?"}]${e.status === "DRAFT" ? " (non validé)" : ""}`).join("\n");
@@ -298,7 +297,8 @@ export const generateSummary = createServerFn({ method: "POST" })
       ],
       false,
     );
-    const { data: row } = await sb
+    await assertCanWrite(context.userId, data.caseId, conf);
+    const { data: row } = await (await db())
       .from("ai_drafts")
       .insert({ tenant_id: tenantId, case_id: data.caseId, kind: "SYNTHESE", confidentiality: conf, draft_text: text, required_role: conf === "MEDICAL" ? "MEDECIN_TRAVAIL" : "PDP_COORDINATOR", created_by: context.userId })
       .select("id")
@@ -331,7 +331,8 @@ Afin de préparer au mieux cette reprise, nous vous proposons un échange avec l
 Nous restons à votre disposition.
 
 Le service de prévention et de santé au travail`;
-    const { data: row } = await sb
+    await assertCanWrite(context.userId, data.caseId, "EMPLOYER_VISIBLE");
+    const { data: row } = await (await db())
       .from("ai_drafts")
       .insert({ tenant_id: tenantId, case_id: data.caseId, kind: "COURRIER_EMPLOYEUR", confidentiality: "EMPLOYER_VISIBLE", draft_text: text, required_role: "MEDECIN_TRAVAIL", created_by: context.userId })
       .select("id")
@@ -344,15 +345,9 @@ export const reviewDraft = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ draftId: z.string().uuid(), status: z.enum(["APPROVED", "REJECTED"]), text: z.string().max(20000).optional() }).parse(d))
   .handler(async ({ data, context }) => {
-    const sb = context.supabase as any;
-    const { data: dr } = await sb.from("ai_drafts").select("id, case_id, required_role, draft_text").eq("id", data.draftId).maybeSingle();
-    if (!dr) throw new Error("Brouillon introuvable");
-    if (!(await hasRole(sb, dr.required_role, context.userId))) throw new Error("Vous n'avez pas le rôle requis pour valider ce document");
-    await sb
-      .from("ai_drafts")
-      .update({ status: data.status, approved_text: data.status === "APPROVED" ? (data.text ?? dr.draft_text) : null, approved_by: context.userId, approved_at: new Date().toISOString() })
-      .eq("id", dr.id);
-    await audit(sb, await tenantOf(sb, context.userId), context.userId, `DRAFT_${data.status}`, "ai_drafts", dr.id, dr.case_id);
+    // Role check (required_role in the draft's tenant), update and audit happen together in public.review_draft.
+    const { error } = await (await db()).rpc("review_draft", { _draft: data.draftId, _actor: context.userId, _status: data.status, _text: data.text ?? null });
+    if (error) throw new Error(error.message.includes("role") ? "Vous n'avez pas le rôle requis pour valider ce document" : "Brouillon introuvable");
     return { ok: true };
   });
 
@@ -368,7 +363,7 @@ export const planCoordination = createServerFn({ method: "POST" })
     if (!c) throw new Error("Dossier introuvable");
     const [{ data: st }, { data: docs }, { data: existing }] = await Promise.all([
       sb.from("work_stoppages").select("start_date, end_date, origin, kind").eq("worker_id", c.worker_id),
-      sb.from("documents").select("doc_type").eq("case_id", data.caseId),
+      db().then((a) => a.from("documents").select("doc_type").eq("case_id", data.caseId).eq("tenant_id", tenantId)), // types only, no content
       sb.from("coordination_tasks").select("purpose").eq("case_id", data.caseId).in("status", ["PENDING", "SENT"]),
     ]);
     const have = new Set((docs ?? []).map((d: any) => d.doc_type));
