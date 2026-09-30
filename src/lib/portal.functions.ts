@@ -159,13 +159,26 @@ export const acceptInvitation = createServerFn({ method: "POST" })
       .eq("token_hash", await sha256(data.token))
       .maybeSingle();
     if (!inv || inv.accepted_at || new Date(inv.expires_at) < new Date()) throw new Error("Invitation invalide ou expirée");
-    const { error } = await db.auth.admin.createUser({
+    const { data: created, error } = await db.auth.admin.createUser({
       email: inv.email,
       password: data.password,
       email_confirm: true,
       app_metadata: { invite_id: inv.id },
     });
-    if (error) throw new Error(error.message.includes("already") ? "Un compte existe déjà pour cette adresse" : "Création du compte impossible");
+    if (error || !created?.user) throw new Error(error?.message.includes("already") ? "Un compte existe déjà pour cette adresse" : "Création du compte impossible");
+    // The signup trigger may have created a personal workspace: move the user into the inviting tenant as employer only.
+    const uid = created.user.id;
+    const { data: full } = await db.from("employer_invitations").select("tenant_id, company_id, full_name").eq("id", inv.id).single();
+    const { data: prof } = await db.from("profiles").select("tenant_id").eq("user_id", uid).maybeSingle();
+    await db.from("user_roles").delete().eq("user_id", uid);
+    if (prof) {
+      await db.from("profiles").update({ tenant_id: full.tenant_id, company_id: full.company_id, full_name: full.full_name ?? inv.email }).eq("user_id", uid);
+      if (prof.tenant_id !== full.tenant_id) await db.from("tenants").delete().eq("id", prof.tenant_id);
+    } else {
+      await db.from("profiles").insert({ user_id: uid, tenant_id: full.tenant_id, company_id: full.company_id, full_name: full.full_name ?? inv.email });
+    }
+    await db.from("user_roles").insert({ user_id: uid, tenant_id: full.tenant_id, role: "EMPLOYER_HR" });
+    await db.from("employer_invitations").update({ accepted_at: new Date().toISOString() }).eq("id", inv.id);
     return { email: inv.email as string };
   });
 
