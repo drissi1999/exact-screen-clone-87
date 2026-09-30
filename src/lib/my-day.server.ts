@@ -121,3 +121,32 @@ export async function buildMyDay(db: any, userId: string, today = todayParis()) 
   const todo = new Set([...groups.EN_RETARD, ...groups.AUJOURDHUI, ...groups.NOUVEAUX, ...groups.DOCUMENTS, ...groups.REPONSES, ...groups.PLAN_TACHES, ...groups.PLAN_ALERTES].map((r) => r.caseId));
   return { today, toHandleToday: todo.size, groups };
 }
+
+/** Dated items (deadlines + open plan tasks) for the agenda and the médecin's "Visites à préparer". No medical tables read. */
+export type AgendaItem = { date: string; caseId: string; worker: string; company: string; label: string; kind: "ECHEANCE" | "PLAN"; code: string; visit: boolean; overdue: boolean };
+const VISIT_CODES = new Set(["PRE_REPRISE", "VISITE_REPRISE", "CONTESTATION_AVIS", "INAPTITUDE_SALARY_RESUMES"]);
+export async function buildAgenda(db: any, userId: string, today = todayParis(), days = 30): Promise<{ today: string; items: AgendaItem[] }> {
+  const tenantId = await assertStaff(db, userId);
+  const { data: cases } = await db.from("cases")
+    .select("id, origin, workers(first_name, last_name), companies(name)").eq("tenant_id", tenantId).eq("status", "OPEN");
+  const ids = (cases ?? []).map((c: any) => c.id as string);
+  const until = addDays(today, days);
+  const [facts, st, tasks] = await Promise.all([
+    loadCaseFacts(db, ids),
+    ids.length ? db.from("work_stoppages").select("case_id, start_date, end_date, origin, kind").in("case_id", ids) : { data: [] },
+    ids.length ? db.from("plan_tasks").select("case_id, code, title, due_date").eq("tenant_id", tenantId).in("case_id", ids).eq("status", "TODO").lte("due_date", until) : { data: [] },
+  ]);
+  const items: AgendaItem[] = [];
+  for (const c of cases ?? []) {
+    const base = { caseId: c.id as string, worker: `${c.workers?.last_name ?? ""} ${c.workers?.first_name ?? ""}`.trim(), company: (c.companies?.name ?? "") as string };
+    for (const d of computeDeadlines((st.data ?? []).filter((s: any) => s.case_id === c.id), c.origin, today, facts.get(c.id))) {
+      if (!d.due || d.status === "INFO" || d.due > until) continue;
+      items.push({ ...base, date: d.due, label: d.label, kind: "ECHEANCE", code: d.code, visit: VISIT_CODES.has(d.code), overdue: d.status === "DEPASSEE" });
+    }
+    for (const t of (tasks.data ?? []).filter((t: any) => t.case_id === c.id)) {
+      items.push({ ...base, date: t.due_date, label: t.title, kind: "PLAN", code: t.code, visit: t.code === "VISITE_REPRISE", overdue: t.due_date < today });
+    }
+  }
+  items.sort((a, b) => a.date.localeCompare(b.date));
+  return { today, items };
+}

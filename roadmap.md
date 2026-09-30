@@ -28,3 +28,5 @@
 - [x] d2) Plan alerts: "Pris en charge" with mandatory note (logged); outcomes never in portals; tests
 - [x] d3) Manual check of Plan de retour tab (coordinator + employer view)
 - [x] g2) "Réinitialiser la démo" (admin, typed confirmation, own SPSTI only, logged) + 12 dated fictional cases with watermarked docs; tests
+- [x] d4) Plan tasks: staff "pour le compte de" with mandatory note (logged) + test; inline document import; "Enregistré" per field; employer upload on task
+- [x] i) Design pass: role navigation, case header card + Prochaines étapes + sourced chronology, plain-language labels, teal visual system, public landing

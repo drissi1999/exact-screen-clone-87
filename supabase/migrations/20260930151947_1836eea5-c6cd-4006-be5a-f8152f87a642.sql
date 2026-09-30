@@ -1,0 +1,1 @@
+ALTER TABLE public.plan_tasks ADD COLUMN IF NOT EXISTS on_behalf_note text;

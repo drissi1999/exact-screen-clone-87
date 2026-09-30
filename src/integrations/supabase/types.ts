@@ -776,6 +776,7 @@ export type Database = {
           kind: string
           offset_days: number
           offset_end_days: number | null
+          on_behalf_note: string | null
           outcome: string | null
           owner_role: string
           partner_label: string | null
@@ -801,6 +802,7 @@ export type Database = {
           kind?: string
           offset_days?: number
           offset_end_days?: number | null
+          on_behalf_note?: string | null
           outcome?: string | null
           owner_role: string
           partner_label?: string | null
@@ -826,6 +828,7 @@ export type Database = {
           kind?: string
           offset_days?: number
           offset_end_days?: number | null
+          on_behalf_note?: string | null
           outcome?: string | null
           owner_role?: string
           partner_label?: string | null

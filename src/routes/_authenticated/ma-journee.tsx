@@ -7,8 +7,8 @@ import { getMyDay } from "@/lib/my-day.functions";
 import { planCoordination } from "@/lib/cases.functions";
 import { acknowledgePlanAlert } from "@/lib/return-plan.functions";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { DeadlineBadge, EmptyState, PriorityIndicator } from "@/components/kit";
 
 export const Route = createFileRoute("/_authenticated/ma-journee")({
   head: () => ({
@@ -16,7 +16,7 @@ export const Route = createFileRoute("/_authenticated/ma-journee")({
       { title: "Ma journée — Reprise" },
       { name: "description", content: "Dossiers à traiter aujourd'hui : échéances, nouveaux dossiers, documents à valider et réponses reçues." },
       { property: "og:title", content: "Ma journée — Reprise" },
-      { property: "og:description", content: "Dossiers à traiter aujourd'hui, triés par score de risque." },
+      { property: "og:description", content: "Dossiers à traiter aujourd'hui, triés par indicateur de priorité." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
@@ -36,7 +36,6 @@ const GROUPS = [
 ] as const;
 const ACTION_LABEL = { RDV_LIAISON: "Planifier le RDV de liaison", VALIDER: "Valider la chronologie", RELANCER: "Relancer", PUBLIER: "Publier", PLAN: "Ouvrir le plan de retour" } as const;
 const ORIGINS: Record<string, string> = { MALADIE: "Maladie", AT: "Accident du travail", MP: "Maladie professionnelle" };
-const fr = (d: string) => new Date(`${d}T12:00:00Z`).toLocaleDateString("fr-FR");
 
 function MyDay() {
   const fetchDay = useServerFn(getMyDay);
@@ -116,11 +115,11 @@ function MyDay() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold">Ma journée</h1>
-          <p className="mt-1 text-lg">
-            <span className="font-semibold">{data.toHandleToday}</span> dossier{data.toHandleToday > 1 ? "s" : ""} à traiter aujourd'hui
-          </p>
-          <p className="text-xs text-muted-foreground">Raccourcis : j / k pour se déplacer, Entrée pour ouvrir le dossier.</p>
+          <p className="text-sm font-medium text-primary">Ma journée</p>
+          <h1 className="mt-1 text-3xl font-semibold tracking-tight">
+            {data.toHandleToday} dossier{data.toHandleToday > 1 ? "s" : ""} à traiter aujourd'hui
+          </h1>
+          <p className="mt-2 text-xs text-muted-foreground">Raccourcis : j / k pour se déplacer, Entrée pour ouvrir le dossier.</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <select aria-label="Entreprise" className="rounded-md border border-input bg-background px-2 py-1.5 text-sm" value={company} onChange={(e) => { setCompany(e.target.value); setCursor(0); }}>
@@ -134,36 +133,36 @@ function MyDay() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {filtered.map((g) => (
-          <a key={g.key} href={`#${g.key}`} className="panel p-3">
-            <p className="text-xs text-muted-foreground">{g.label}</p>
+          <a key={g.key} href={`#${g.key}`} className="panel p-4 transition-colors hover:border-primary/40">
             <p className={cn("text-2xl font-semibold", (g.key === "EN_RETARD" || g.key === "PLAN_ALERTES") && g.rows.length > 0 && "text-destructive")}>{g.rows.length}</p>
+            <p className="mt-1 text-xs text-muted-foreground">{g.label}</p>
           </a>
         ))}
       </div>
 
-      {filtered.map((g) => (
-        <section key={g.key} id={g.key} className="space-y-2">
-          <h2 className="text-lg font-semibold">{g.label} <span className="text-muted-foreground">({g.rows.length})</span></h2>
-          {g.rows.length === 0 && <p className="text-sm text-muted-foreground">Rien ici.</p>}
+      {filtered.every((g) => g.rows.length === 0) && <EmptyState text="Rien à traiter pour ces filtres." action={<Button size="sm" variant="outline" onClick={() => { setCompany(""); setOrigin(""); }}>Effacer les filtres</Button>} />}
+      {filtered.filter((g) => g.rows.length > 0).map((g) => (
+        <section key={g.key} id={g.key} className="space-y-3 pt-2">
+          <h2 className="text-sm font-semibold text-muted-foreground">{g.label} <span className="font-normal">· {g.rows.length}</span></h2>
           {g.rows.map((r) => {
             idx++;
             const i = idx;
             return (
               <div key={`${g.key}-${r.caseId}`} data-row={i} onClick={() => setCursor(i)}
-                className={cn("panel flex flex-wrap items-center gap-4 p-3", cursor === i && "ring-2 ring-primary")}>
+                className={cn("panel flex flex-wrap items-center gap-6 px-5 py-4", cursor === i && "ring-2 ring-primary")}>
                 <div className="min-w-48 flex-1">
                   <button className="font-medium hover:underline" onClick={() => open(r.caseId)}>{r.worker}</button>
                   <p className="text-sm text-muted-foreground">{r.company}{r.origin ? ` · ${ORIGINS[r.origin] ?? r.origin}` : ""}</p>
-                  <p className="text-sm">{r.reason}</p>
+                  <p className="line-clamp-2 text-sm" title={r.reason}>{r.reason}</p>
                 </div>
                 <div className="w-48 text-sm">
-                  {r.nextDeadline ? <><p className="text-muted-foreground">Prochaine échéance</p><p>{r.nextDeadline.label} — {fr(r.nextDeadline.due)}</p><p className="text-xs text-muted-foreground">à valider juridiquement</p></> : <p className="text-muted-foreground">Aucune échéance</p>}
+                  {r.nextDeadline ? <><p className="truncate">{r.nextDeadline.label}</p><div className="mt-1"><DeadlineBadge due={r.nextDeadline.due} /></div><p className="mt-1 text-xs text-muted-foreground">à valider juridiquement</p></> : <p className="text-muted-foreground">Aucune échéance</p>}
                 </div>
                 <div className="w-56 text-sm">
-                  <Badge variant={r.score >= 60 ? "destructive" : r.score >= 35 ? "default" : "secondary"}>Risque {r.score}/100</Badge>
-                  {r.topFactors.map((f) => <p key={f.libelle} className="text-xs text-muted-foreground">+{f.points} {f.libelle}</p>)}
+                  <PriorityIndicator score={r.score} />
+                  {r.topFactors.map((f) => <p key={f.libelle} className="mt-1 text-xs text-muted-foreground">+{f.points} {f.libelle}</p>)}
                 </div>
                 <div className="flex flex-col gap-2">
                   <Button size="sm" disabled={busy === r.caseId} onClick={() => act(r.caseId, r.action)}>{ACTION_LABEL[r.action]}</Button>

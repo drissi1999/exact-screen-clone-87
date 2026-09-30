@@ -124,4 +124,26 @@ run("Plan de retour (live database)", () => {
       for (const w of ["RECHUTE", "DIFFICULTES", "MAINTENU", "outcome", "suivi", "Appel au salarié"]) expect(s.toLowerCase()).not.toContain(w.toLowerCase());
     }
   });
+
+  it("staff can complete an employer/worker task only with a note; the mention is stored and logged", async () => {
+    const { tasks } = await getPlan(admin, coord, caseId);
+    const v = tasks.find((t: any) => t.code === "VALIDATION_EMPLOYEUR");
+    await expect(completePlanTask(admin, coord, { taskId: v.id })).rejects.toThrow("note");
+    await expect(completePlanTask(admin, coord, { taskId: v.id, note: "  " })).rejects.toThrow("note");
+    await completePlanTask(admin, coord, { taskId: v.id, note: "Accord donné par téléphone" });
+    const row = (await admin.from("plan_tasks").select("status, on_behalf_note, done_by").eq("id", v.id).single()).data;
+    expect(row).toMatchObject({ status: "DONE", done_by: coord, on_behalf_note: "Fait pour le compte de l'employeur — Accord donné par téléphone" });
+    const log = (await admin.from("audit_log").select("action, user_id").eq("entity_id", v.id)).data;
+    expect(log).toEqual([{ action: "PLAN_TASK_ON_BEHALF", user_id: coord }]);
+    const w = tasks.find((t: any) => t.code === "CONFIRMER_DATE");
+    if (w && w.status === "TODO") {
+      await completePlanTask(admin, coord, { taskId: w.id, note: "Date confirmée par le salarié" });
+      const r = (await admin.from("plan_tasks").select("on_behalf_note").eq("id", w.id).single()).data;
+      expect(r.on_behalf_note.startsWith("Fait pour le compte du salarié")).toBe(true);
+    }
+    // Staff-owned tasks need no note.
+    const own = tasks.find((t: any) => t.code === "ETUDE_POSTE");
+    await completePlanTask(admin, coord, { taskId: own.id });
+    expect((await admin.from("plan_tasks").select("on_behalf_note").eq("id", own.id).single()).data.on_behalf_note).toBeNull();
+  });
 });

@@ -29,6 +29,7 @@ function Landing() {
     const staff = r.some((x) => x !== "EMPLOYER_HR" && x !== "WORKER");
     if (!staff) navigate({ to: "/employeur", replace: true });
     else if (r.includes("IDEST") || r.includes("PDP_COORDINATOR")) navigate({ to: "/ma-journee", replace: true });
+    else if (r.includes("MEDECIN_TRAVAIL")) navigate({ to: "/visites", replace: true });
     else navigate({ to: "/tableau-de-bord", replace: true });
   }, [me, navigate]);
   return <p className="text-muted-foreground">Chargement…</p>;
