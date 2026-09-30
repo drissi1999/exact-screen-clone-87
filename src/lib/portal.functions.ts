@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { computeDeadlines } from "./rules";
 import { buildEmployerPortal } from "./employer-portal.server";
+import { genericDocTitle } from "./message-templates";
 
 const WORKER_DEADLINES = new Set(["RDV_LIAISON", "PRE_REPRISE", "VISITE_REPRISE"]);
 const MAX_UPLOAD = 5 * 1024 * 1024;
