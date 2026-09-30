@@ -277,6 +277,45 @@ export type Database = {
           },
         ]
       }
+      case_risk_scores: {
+        Row: {
+          case_id: string
+          computed_at: string
+          factors: Json
+          score: number
+          tenant_id: string
+        }
+        Insert: {
+          case_id: string
+          computed_at?: string
+          factors: Json
+          score: number
+          tenant_id: string
+        }
+        Update: {
+          case_id?: string
+          computed_at?: string
+          factors?: Json
+          score?: number
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "case_risk_scores_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: true
+            referencedRelation: "cases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "case_risk_scores_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cases: {
         Row: {
           closed_at: string | null
@@ -350,6 +389,7 @@ export type Database = {
       companies: {
         Row: {
           created_at: string
+          headcount: number | null
           id: string
           name: string
           siret: string | null
@@ -358,6 +398,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          headcount?: number | null
           id?: string
           name: string
           siret?: string | null
@@ -366,6 +407,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          headcount?: number | null
           id?: string
           name?: string
           siret?: string | null
@@ -1094,6 +1136,14 @@ export type Database = {
           _level: Database["public"]["Enums"]["confidentiality"]
         }
         Returns: undefined
+      }
+      my_day_documents: {
+        Args: { _actor: string }
+        Returns: {
+          case_id: string
+          draft_facts: number
+          publishable: number
+        }[]
       }
       release_document: {
         Args: { _actor: string; _doc: string }

@@ -13,6 +13,7 @@ export const Route = createFileRoute("/_authenticated")({
 });
 
 const NAV = [
+  { to: "/ma-journee", label: "Ma journée" },
   { to: "/tableau-de-bord", label: "Tableau de bord" },
   { to: "/dossiers", label: "Dossiers" },
   { to: "/entreprises", label: "Entreprises" },
@@ -66,7 +67,7 @@ function AuthenticatedLayout() {
     <div className="min-h-screen bg-background">
       <header className="border-b border-border bg-card">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-4 px-6 py-4">
-          <Link to={employerOnly ? "/employeur" : "/tableau-de-bord"} className="font-display text-lg font-semibold tracking-tight">
+          <Link to={employerOnly ? "/employeur" : "/accueil"} className="font-display text-lg font-semibold tracking-tight">
             Reprise
           </Link>
           <nav className="flex flex-wrap gap-1">
