@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { getMyDay } from "@/lib/my-day.functions";
 import { planCoordination } from "@/lib/cases.functions";
+import { acknowledgePlanAlert } from "@/lib/return-plan.functions";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -47,6 +48,20 @@ function MyDay() {
   const [origin, setOrigin] = useState("");
   const [cursor, setCursor] = useState(0);
   const [busy, setBusy] = useState<string | null>(null);
+  const ack = useServerFn(acknowledgePlanAlert);
+  const [ackFor, setAckFor] = useState<string | null>(null);
+  const [ackNote, setAckNote] = useState("");
+  async function submitAck(ids: string[]) {
+    if (ackNote.trim().length < 3) { toast.error("Une note est obligatoire"); return; }
+    try {
+      for (const taskId of ids) await ack({ data: { taskId, note: ackNote.trim() } });
+      toast.success("Alerte prise en charge");
+      setAckFor(null); setAckNote("");
+      qc.invalidateQueries({ queryKey: ["my-day"] });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erreur");
+    }
+  }
 
   const filtered = useMemo(() => {
     if (!data) return [];
@@ -150,7 +165,17 @@ function MyDay() {
                   <Badge variant={r.score >= 60 ? "destructive" : r.score >= 35 ? "default" : "secondary"}>Risque {r.score}/100</Badge>
                   {r.topFactors.map((f) => <p key={f.libelle} className="text-xs text-muted-foreground">+{f.points} {f.libelle}</p>)}
                 </div>
-                <Button size="sm" disabled={busy === r.caseId} onClick={() => act(r.caseId, r.action)}>{ACTION_LABEL[r.action]}</Button>
+                <div className="flex flex-col gap-2">
+                  <Button size="sm" disabled={busy === r.caseId} onClick={() => act(r.caseId, r.action)}>{ACTION_LABEL[r.action]}</Button>
+                  {r.alertTaskIds?.length ? <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); setAckFor(ackFor === r.caseId ? null : r.caseId); setAckNote(""); }}>Pris en charge</Button> : null}
+                </div>
+                {ackFor === r.caseId && r.alertTaskIds && (
+                  <form className="flex w-full gap-2" onSubmit={(e) => { e.preventDefault(); submitAck(r.alertTaskIds!); }}>
+                    <input autoFocus required minLength={3} maxLength={1000} value={ackNote} onChange={(e) => setAckNote(e.target.value)}
+                      placeholder="Note obligatoire : ce qui a été fait (sans information médicale)" className="flex-1 rounded-md border border-input bg-background px-2 py-1.5 text-sm" />
+                    <Button size="sm" type="submit">Valider</Button>
+                  </form>
+                )}
               </div>
             );
           })}

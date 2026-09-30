@@ -14,6 +14,7 @@ export type MyDayRow = {
   caseId: string; worker: string; company: string; companyId: string; origin: string | null;
   reason: string; nextDeadline: { label: string; due: string } | null;
   score: number; topFactors: { libelle: string; points: number }[]; action: MyDayAction;
+  alertTaskIds?: string[];
 };
 
 export async function assertStaff(db: any, userId: string): Promise<string> {
@@ -114,7 +115,7 @@ export async function buildMyDay(db: any, userId: string, today = todayParis()) 
     const pd = plan.due.filter((t: any) => t.case_id === c.id);
     if (pd.length) groups.PLAN_TACHES.push({ ...base, reason: `Plan de retour : ${pd.map((t: any) => `${t.title} (${t.due_date < today ? "en retard" : "aujourd'hui"})`).join(", ")}`, action: "PLAN" });
     const pa = plan.alerts.filter((t: any) => t.case_id === c.id);
-    if (pa.length) groups.PLAN_ALERTES.push({ ...base, reason: `Alerte suivi : ${pa.map((t: any) => `${t.title} — ${t.outcome === "RECHUTE" ? "rechute" : "difficultés"}`).join(", ")}`, action: "PLAN" });
+    if (pa.length) groups.PLAN_ALERTES.push({ ...base, reason: `Alerte suivi : ${pa.map((t: any) => `${t.title} — ${t.outcome === "RECHUTE" ? "rechute" : "difficultés"}`).join(", ")}`, action: "PLAN", alertTaskIds: pa.map((t: any) => t.id as string) });
   }
   for (const g of Object.values(groups)) g.sort((a, b) => b.score - a.score);
   const todo = new Set([...groups.EN_RETARD, ...groups.AUJOURDHUI, ...groups.NOUVEAUX, ...groups.DOCUMENTS, ...groups.REPONSES, ...groups.PLAN_TACHES, ...groups.PLAN_ALERTES].map((r) => r.caseId));

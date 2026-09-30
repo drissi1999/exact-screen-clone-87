@@ -43,7 +43,7 @@ export async function getPlan(db: any, userId: string, caseId: string) {
   const plan = await planOf(db, caseId);
   if (!plan) return { plan: null, tasks: [] as any[] };
   const { data: tasks } = await db.from("plan_tasks")
-    .select("id, code, kind, title, owner_role, partner_label, due_date, due_end, requires_document, document_id, status, outcome, done_at")
+    .select("id, code, kind, title, owner_role, partner_label, due_date, due_end, requires_document, document_id, status, outcome, done_at, alert_ack_at, alert_ack_note")
     .eq("plan_id", plan.id).order("due_date");
   return {
     plan: {
@@ -137,6 +137,7 @@ export async function completePlanTask(db: any, userId: string, i: { taskId: str
   if (!t) throw new Error("Tâche introuvable");
   await assertPlanEditor(db, userId, t.case_id);
   if (t.status === "DONE") throw new Error("Tâche déjà terminée");
+  if (t.kind === "MILESTONE" && FOLLOWUP_CODES.includes(t.code)) throw new Error("Ce point de suivi sera planifié à la reprise effective");
   if (t.kind === "FOLLOWUP" && !i.outcome) throw new Error("Indiquez le résultat du suivi");
   if (t.requires_document) {
     if (!i.documentId) throw new Error("Cette tâche nécessite un document");
@@ -172,12 +173,25 @@ export async function completePortalPlanTask(db: any, i: { taskId: string; owner
   return { ok: true };
 }
 
-/** "Ma journée": open plan tasks due today or overdue, and follow-up alerts (difficultés / rechute). */
+/** "Pris en charge": closes one follow-up alert with a mandatory note (who, when, note; audited). */
+export async function acknowledgeAlert(db: any, userId: string, i: { taskId: string; note: string }) {
+  const note = i.note.trim();
+  if (note.length < 3) throw new Error("Une note est obligatoire");
+  const { data: t } = await db.from("plan_tasks").select("id, case_id, tenant_id, outcome, alert_ack_at").eq("id", i.taskId).maybeSingle();
+  if (!t || !["DIFFICULTES", "RECHUTE"].includes(t.outcome)) throw new Error("Alerte introuvable");
+  await assertPlanEditor(db, userId, t.case_id);
+  if (t.alert_ack_at) throw new Error("Alerte déjà prise en charge");
+  await db.from("plan_tasks").update({ alert_ack_at: new Date().toISOString(), alert_ack_by: userId, alert_ack_note: note.slice(0, 1000) }).eq("id", t.id);
+  await db.from("audit_log").insert({ tenant_id: t.tenant_id, user_id: userId, action: "PLAN_ALERT_ACK", entity: "plan_tasks", entity_id: t.id, case_id: t.case_id });
+  return { ok: true };
+}
+
+/** "Ma journée": open plan tasks due today or overdue, and unacknowledged follow-up alerts (difficultés / rechute). */
 export async function myDayPlanItems(db: any, tenantId: string, caseIds: string[], today = todayParis()) {
   if (!caseIds.length) return { due: [] as any[], alerts: [] as any[] };
   const [due, alerts] = await Promise.all([
     db.from("plan_tasks").select("case_id, title, due_date, owner_role").eq("tenant_id", tenantId).in("case_id", caseIds).eq("status", "TODO").lte("due_date", today).order("due_date"),
-    db.from("plan_tasks").select("case_id, title, outcome, done_at, return_plans!inner(status)").eq("tenant_id", tenantId).in("case_id", caseIds).in("outcome", ["DIFFICULTES", "RECHUTE"]).neq("return_plans.status", "TERMINE"),
+    db.from("plan_tasks").select("id, case_id, title, outcome, done_at").eq("tenant_id", tenantId).in("case_id", caseIds).in("outcome", ["DIFFICULTES", "RECHUTE"]).is("alert_ack_at", null),
   ]);
   return { due: due.data ?? [], alerts: alerts.data ?? [] };
 }

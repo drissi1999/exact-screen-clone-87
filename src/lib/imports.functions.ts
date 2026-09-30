@@ -296,13 +296,3 @@ export const createApiKey = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { key };
   });
-
-/* ------------------------------- demo seed data -------------------------------- */
-
-export const seedDemoData = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
-    const { seedDemo } = await import("./seed.server");
-    const tenantId = await tenantOf(context.supabase, context.userId);
-    return seedDemo(context.supabase, tenantId);
-  });
