@@ -12,10 +12,12 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as AuthenticatedAccueilRouteImport } from './routes/_authenticated/accueil'
 import { Route as AuthenticatedApercuRouteImport } from './routes/_authenticated/apercu'
 import { Route as AuthenticatedDossiersRouteImport } from './routes/_authenticated/dossiers'
 import { Route as AuthenticatedEmployeurRouteImport } from './routes/_authenticated/employeur'
 import { Route as AuthenticatedEntreprisesRouteImport } from './routes/_authenticated/entreprises'
+import { Route as AuthenticatedMaJourneeRouteImport } from './routes/_authenticated/ma-journee'
 import { Route as AuthenticatedMessagesRouteImport } from './routes/_authenticated/messages'
 import { Route as AuthenticatedTableauDeBordRouteImport } from './routes/_authenticated/tableau-de-bord'
 import { Route as InvitationTokenRouteImport } from './routes/invitation.$token'
@@ -39,6 +41,11 @@ const AuthRoute = AuthRouteImport.update({
   path: '/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedAccueilRoute = AuthenticatedAccueilRouteImport.update({
+  id: '/accueil',
+  path: '/accueil',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedApercuRoute = AuthenticatedApercuRouteImport.update({
   id: '/apercu',
   path: '/apercu',
@@ -60,6 +67,11 @@ const AuthenticatedEntreprisesRoute =
     path: '/entreprises',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedMaJourneeRoute = AuthenticatedMaJourneeRouteImport.update({
+  id: '/ma-journee',
+  path: '/ma-journee',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedMessagesRoute = AuthenticatedMessagesRouteImport.update({
   id: '/messages',
   path: '/messages',
@@ -109,10 +121,12 @@ const ApiPublicIngestStoppagesRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/accueil': typeof AuthenticatedAccueilRoute
   '/apercu': typeof AuthenticatedApercuRoute
   '/dossiers': typeof AuthenticatedDossiersRoute
   '/employeur': typeof AuthenticatedEmployeurRoute
   '/entreprises': typeof AuthenticatedEntreprisesRoute
+  '/ma-journee': typeof AuthenticatedMaJourneeRoute
   '/messages': typeof AuthenticatedMessagesRoute
   '/tableau-de-bord': typeof AuthenticatedTableauDeBordRoute
   '/invitation/$token': typeof InvitationTokenRoute
@@ -125,10 +139,12 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/accueil': typeof AuthenticatedAccueilRoute
   '/apercu': typeof AuthenticatedApercuRoute
   '/dossiers': typeof AuthenticatedDossiersRoute
   '/employeur': typeof AuthenticatedEmployeurRoute
   '/entreprises': typeof AuthenticatedEntreprisesRoute
+  '/ma-journee': typeof AuthenticatedMaJourneeRoute
   '/messages': typeof AuthenticatedMessagesRoute
   '/tableau-de-bord': typeof AuthenticatedTableauDeBordRoute
   '/invitation/$token': typeof InvitationTokenRoute
@@ -143,10 +159,12 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
+  '/_authenticated/accueil': typeof AuthenticatedAccueilRoute
   '/_authenticated/apercu': typeof AuthenticatedApercuRoute
   '/_authenticated/dossiers': typeof AuthenticatedDossiersRoute
   '/_authenticated/employeur': typeof AuthenticatedEmployeurRoute
   '/_authenticated/entreprises': typeof AuthenticatedEntreprisesRoute
+  '/_authenticated/ma-journee': typeof AuthenticatedMaJourneeRoute
   '/_authenticated/messages': typeof AuthenticatedMessagesRoute
   '/_authenticated/tableau-de-bord': typeof AuthenticatedTableauDeBordRoute
   '/invitation/$token': typeof InvitationTokenRoute
@@ -161,10 +179,12 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/auth'
+    | '/accueil'
     | '/apercu'
     | '/dossiers'
     | '/employeur'
     | '/entreprises'
+    | '/ma-journee'
     | '/messages'
     | '/tableau-de-bord'
     | '/invitation/$token'
@@ -177,10 +197,12 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/auth'
+    | '/accueil'
     | '/apercu'
     | '/dossiers'
     | '/employeur'
     | '/entreprises'
+    | '/ma-journee'
     | '/messages'
     | '/tableau-de-bord'
     | '/invitation/$token'
@@ -194,10 +216,12 @@ export interface FileRouteTypes {
     | '/'
     | '/_authenticated'
     | '/auth'
+    | '/_authenticated/accueil'
     | '/_authenticated/apercu'
     | '/_authenticated/dossiers'
     | '/_authenticated/employeur'
     | '/_authenticated/entreprises'
+    | '/_authenticated/ma-journee'
     | '/_authenticated/messages'
     | '/_authenticated/tableau-de-bord'
     | '/invitation/$token'
@@ -240,6 +264,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/accueil': {
+      id: '/_authenticated/accueil'
+      path: '/accueil'
+      fullPath: '/accueil'
+      preLoaderRoute: typeof AuthenticatedAccueilRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/apercu': {
       id: '/_authenticated/apercu'
       path: '/apercu'
@@ -266,6 +297,13 @@ declare module '@tanstack/react-router' {
       path: '/entreprises'
       fullPath: '/entreprises'
       preLoaderRoute: typeof AuthenticatedEntreprisesRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/ma-journee': {
+      id: '/_authenticated/ma-journee'
+      path: '/ma-journee'
+      fullPath: '/ma-journee'
+      preLoaderRoute: typeof AuthenticatedMaJourneeRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/messages': {
@@ -328,10 +366,12 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthenticatedRouteRouteChildren {
+  AuthenticatedAccueilRoute: typeof AuthenticatedAccueilRoute
   AuthenticatedApercuRoute: typeof AuthenticatedApercuRoute
   AuthenticatedDossiersRoute: typeof AuthenticatedDossiersRoute
   AuthenticatedEmployeurRoute: typeof AuthenticatedEmployeurRoute
   AuthenticatedEntreprisesRoute: typeof AuthenticatedEntreprisesRoute
+  AuthenticatedMaJourneeRoute: typeof AuthenticatedMaJourneeRoute
   AuthenticatedMessagesRoute: typeof AuthenticatedMessagesRoute
   AuthenticatedTableauDeBordRoute: typeof AuthenticatedTableauDeBordRoute
   AuthenticatedDossiersCaseIdRoute: typeof AuthenticatedDossiersCaseIdRoute
@@ -340,10 +380,12 @@ interface AuthenticatedRouteRouteChildren {
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedAccueilRoute: AuthenticatedAccueilRoute,
   AuthenticatedApercuRoute: AuthenticatedApercuRoute,
   AuthenticatedDossiersRoute: AuthenticatedDossiersRoute,
   AuthenticatedEmployeurRoute: AuthenticatedEmployeurRoute,
   AuthenticatedEntreprisesRoute: AuthenticatedEntreprisesRoute,
+  AuthenticatedMaJourneeRoute: AuthenticatedMaJourneeRoute,
   AuthenticatedMessagesRoute: AuthenticatedMessagesRoute,
   AuthenticatedTableauDeBordRoute: AuthenticatedTableauDeBordRoute,
   AuthenticatedDossiersCaseIdRoute: AuthenticatedDossiersCaseIdRoute,
