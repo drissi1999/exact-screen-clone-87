@@ -1,0 +1,21 @@
+Raison sociale,N° SIRET,NOM salarié,Prénom,Né(e) le,Poste occupé,Date d'arrêt (du),Reprise prévue (au),Nature de l'arrêt,Suite ?,Mail pro,Tel
+Ateliers Mécaniques du Nord,39847503200014,Dubois,Camille,05/01/1970,Cariste,03/03/2026,11/03/2026,Maladie,Prolongation,camille.dubois@exemple.fr,0610000000
+Clinique Saint-Amand,44219876500027,Bernard,Julien,06/02/1971,Aide-soignante,04/04/2026,19/05/2026,Accident du travail,Initial,julien.bernard@exemple.fr,0610111111
+Transports Delcourt,51032648700033,Petit,Nathalie,07/03/1972,Chauffeur PL,05/05/2026,06/07/2026,Maladie professionnelle,Initial,nathalie.petit@exemple.fr,0610222222
+Ateliers Mécaniques du Nord,39847503200014,Moreau,Sébastien,08/04/1973,Soudeur,06/06/2026,18/06/2026,Maladie,Initial,sebastien.moreau@exemple.fr,0610333333
+Clinique Saint-Amand,44219876500027,Garcia,Fatima,09/05/1974,Agent d'entretien,07/07/2026,10/10/2026,Maladie,Initial,fatima.garcia@exemple.fr,0610444444
+Transports Delcourt,51032648700033,Leroy,Olivier,10/06/1975,Cariste,08/03/2026,16/03/2026,Accident du travail,Initial,olivier.leroy@exemple.fr,0610555555
+Ateliers Mécaniques du Nord,39847503200014,Roux,Amandine,11/07/1976,Aide-soignante,09/04/2026,24/05/2026,Maladie professionnelle,Initial,amandine.roux@exemple.fr,0610666666
+Clinique Saint-Amand,44219876500027,Fournier,Karim,12/08/1977,Chauffeur PL,10/05/2026,11/07/2026,Maladie,Prolongation,karim.fournier@exemple.fr,0610777777
+Transports Delcourt,51032648700033,Girard,Sophie,13/09/1978,Soudeur,11/06/2026,23/06/2026,Maladie,Initial,sophie.girard@exemple.fr,0610888888
+Ateliers Mécaniques du Nord,39847503200014,Mercier,Thierry,14/01/1979,Agent d'entretien,12/07/2026,15/10/2026,Accident du travail,Initial,thierry.mercier@exemple.fr,0610999999
+Clinique Saint-Amand,44219876500027,Lambert,Émilie,15/02/1980,Cariste,13/03/2026,21/03/2026,Maladie professionnelle,Initial,emilie.lambert@exemple.fr,0611111110
+Transports Delcourt,51032648700033,Bonnet,Younes,16/03/1981,Aide-soignante,14/04/2026,29/05/2026,Maladie,Initial,younes.bonnet@exemple.fr,0611222221
+Ateliers Mécaniques du Nord,39847503200014,Robert,Sandrine,17/04/1982,Chauffeur PL,15/05/2026,16/07/2026,Maladie,Initial,sandrine.robert@exemple.fr,0611333332
+Clinique Saint-Amand,44219876500027,Simon,Ludovic,18/05/1983,Soudeur,16/06/2026,28/06/2026,Accident du travail,Initial,ludovic.simon@exemple.fr,0611444443
+Transports Delcourt,51032648700033,Vincent,Aurélie,19/06/1984,Agent d'entretien,17/07/2026,20/10/2026,Maladie professionnelle,Prolongation,aurelie.vincent@exemple.fr,0611555554
+Transports Delcourt,51032648700033,,Marc,12/04/1980,Cariste,01/06/2026,20/06/2026,Maladie,Initial,,
+Clinique Saint-Amand,44219876500027,Durand,Alice,31/02/1985,Aide-soignante,32/13/2026,,Maladie,Initial,alice.durand@exemple.fr,
+Ateliers Mécaniques du Nord,123,Martin,Hugo,05/05/1979,Soudeur,10/04/2026,20/04/2026,AT,Initial,hugo.martin@exemple.fr,
+Transports Delcourt,51032648700033,Lefevre,Paul,09/09/1990,Chauffeur PL,15/05/2026,01/05/2026,Maladie,Initial,paul.lefevre@exemple.fr,
+Ateliers Mécaniques du Nord,39847503200014,Dubois,Camille,05/01/1970,Aide-soignante,03/03/2026,11/03/2026,Maladie,Initial,camille.dubois@exemple.fr,

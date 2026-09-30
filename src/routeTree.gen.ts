@@ -10,33 +10,110 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
+import { Route as AuthRouteImport } from './routes/auth'
+import { Route as AuthenticatedDossiersRouteImport } from './routes/_authenticated/dossiers'
+import { Route as AuthenticatedTableauDeBordRouteImport } from './routes/_authenticated/tableau-de-bord'
+import { Route as AuthenticatedParametresImportsRouteImport } from './routes/_authenticated/parametres.imports'
+import { Route as ApiPublicIngestStoppagesRouteImport } from './routes/api/public/ingest/stoppages'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
+  id: '/_authenticated',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedDossiersRoute = AuthenticatedDossiersRouteImport.update({
+  id: '/dossiers',
+  path: '/dossiers',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedTableauDeBordRoute =
+  AuthenticatedTableauDeBordRouteImport.update({
+    id: '/tableau-de-bord',
+    path: '/tableau-de-bord',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedParametresImportsRoute =
+  AuthenticatedParametresImportsRouteImport.update({
+    id: '/parametres/imports',
+    path: '/parametres/imports',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const ApiPublicIngestStoppagesRoute =
+  ApiPublicIngestStoppagesRouteImport.update({
+    id: '/api/public/ingest/stoppages',
+    path: '/api/public/ingest/stoppages',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
+  '/dossiers': typeof AuthenticatedDossiersRoute
+  '/tableau-de-bord': typeof AuthenticatedTableauDeBordRoute
+  '/parametres/imports': typeof AuthenticatedParametresImportsRoute
+  '/api/public/ingest/stoppages': typeof ApiPublicIngestStoppagesRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
+  '/dossiers': typeof AuthenticatedDossiersRoute
+  '/tableau-de-bord': typeof AuthenticatedTableauDeBordRoute
+  '/parametres/imports': typeof AuthenticatedParametresImportsRoute
+  '/api/public/ingest/stoppages': typeof ApiPublicIngestStoppagesRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
+  '/auth': typeof AuthRoute
+  '/_authenticated/dossiers': typeof AuthenticatedDossiersRoute
+  '/_authenticated/tableau-de-bord': typeof AuthenticatedTableauDeBordRoute
+  '/_authenticated/parametres/imports': typeof AuthenticatedParametresImportsRoute
+  '/api/public/ingest/stoppages': typeof ApiPublicIngestStoppagesRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/auth'
+    | '/dossiers'
+    | '/tableau-de-bord'
+    | '/parametres/imports'
+    | '/api/public/ingest/stoppages'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/auth'
+    | '/dossiers'
+    | '/tableau-de-bord'
+    | '/parametres/imports'
+    | '/api/public/ingest/stoppages'
+  id:
+    | '__root__'
+    | '/'
+    | '/_authenticated'
+    | '/auth'
+    | '/_authenticated/dossiers'
+    | '/_authenticated/tableau-de-bord'
+    | '/_authenticated/parametres/imports'
+    | '/api/public/ingest/stoppages'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
+  AuthRoute: typeof AuthRoute
+  ApiPublicIngestStoppagesRoute: typeof ApiPublicIngestStoppagesRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +125,71 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated': {
+      id: '/_authenticated'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AuthenticatedRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/dossiers': {
+      id: '/_authenticated/dossiers'
+      path: '/dossiers'
+      fullPath: '/dossiers'
+      preLoaderRoute: typeof AuthenticatedDossiersRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/tableau-de-bord': {
+      id: '/_authenticated/tableau-de-bord'
+      path: '/tableau-de-bord'
+      fullPath: '/tableau-de-bord'
+      preLoaderRoute: typeof AuthenticatedTableauDeBordRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/parametres/imports': {
+      id: '/_authenticated/parametres/imports'
+      path: '/parametres/imports'
+      fullPath: '/parametres/imports'
+      preLoaderRoute: typeof AuthenticatedParametresImportsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/api/public/ingest/stoppages': {
+      id: '/api/public/ingest/stoppages'
+      path: '/api/public/ingest/stoppages'
+      fullPath: '/api/public/ingest/stoppages'
+      preLoaderRoute: typeof ApiPublicIngestStoppagesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
+interface AuthenticatedRouteRouteChildren {
+  AuthenticatedDossiersRoute: typeof AuthenticatedDossiersRoute
+  AuthenticatedTableauDeBordRoute: typeof AuthenticatedTableauDeBordRoute
+  AuthenticatedParametresImportsRoute: typeof AuthenticatedParametresImportsRoute
+}
+
+const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedDossiersRoute: AuthenticatedDossiersRoute,
+  AuthenticatedTableauDeBordRoute: AuthenticatedTableauDeBordRoute,
+  AuthenticatedParametresImportsRoute: AuthenticatedParametresImportsRoute,
+}
+
+const AuthenticatedRouteRouteWithChildren =
+  AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
+  AuthRoute: AuthRoute,
+  ApiPublicIngestStoppagesRoute: ApiPublicIngestStoppagesRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
