@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { exchangeWorkerLink, getWorkerDocUrl, getWorkerPortal, workerCompleteTask, workerUpload } from "@/lib/portal.functions";
 import { fileToBase64, frDate } from "@/lib/file-to-base64";
@@ -36,6 +36,7 @@ function WorkerPortal() {
   const [data, setData] = useState<Portal | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const started = useRef(false);
 
   const load = useCallback(async (s: string) => {
     try {
@@ -49,6 +50,8 @@ function WorkerPortal() {
   }, [fPortal]);
 
   useEffect(() => {
+    if (started.current) return;
+    started.current = true;
     const saved = sessionStorage.getItem(KEY);
     if (saved) {
       const { t, s } = JSON.parse(saved);
