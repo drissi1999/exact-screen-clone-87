@@ -18,3 +18,7 @@
 - Roles live in `user_roles` (never on profiles); confidentiality is enforced in RLS via `can_read_level()`, so server code never filters medical data by hand. Why: backend-layer enforcement of medical secrecy.
 - Legal deadlines only come from `src/lib/rules.ts`. Why: spec forbids inline deadline logic.
 - Employer-facing documents are built from templates with no medical inputs; AI outputs inherit `maxConfidentiality` of their inputs and stay DRAFT until approved by `required_role`.
+- RLS helper functions live in the `private` schema (not exposed by the API); tenant tables require `private.is_staff()`. Why: clears SECURITY DEFINER linter warnings and keeps employers off staff tables.
+- Employer and worker portals read through server functions using the admin client with an explicit company/case filter and a column whitelist. Why: column-level medical secrecy cannot be expressed per role in RLS.
+- Worker access = single-use 15-min link exchanged for a 30-min server session (`worker_links`/`worker_sessions`, service-role only). Why: workers have no account.
+- Invited employers are moved into the inviting tenant in `acceptInvitation` (the signup trigger cannot see app_metadata at insert time).
