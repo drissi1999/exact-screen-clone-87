@@ -6,7 +6,7 @@
 
 /*
  * Reprise design system — sober French health-at-work SaaS.
- * Ink navy surfaces, clinical teal primary, ochre for warnings.
+ * Neutral greys, white cards, one deep-teal accent; red/amber only for deadlines.
  * All colors are oklch tokens. Never hardcode colors in components.
  */
 
@@ -51,42 +51,42 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
-  --shadow-panel: 0 1px 2px oklch(0.2 0.03 230 / 0.06), 0 12px 32px -18px oklch(0.2 0.03 230 / 0.35);
+  --shadow-panel: 0 1px 2px oklch(0.2 0.01 220 / 0.04);
 }
 
 :root {
-  --radius: 0.5rem;
-  --background: oklch(0.985 0.004 210);
-  --foreground: oklch(0.23 0.03 235);
+  --radius: 0.625rem;
+  --background: oklch(0.982 0.002 200);
+  --foreground: oklch(0.22 0.01 220);
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.23 0.03 235);
+  --card-foreground: oklch(0.22 0.01 220);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.23 0.03 235);
-  --primary: oklch(0.48 0.09 205);
-  --primary-foreground: oklch(0.99 0.005 200);
-  --secondary: oklch(0.95 0.012 215);
-  --secondary-foreground: oklch(0.28 0.04 232);
-  --muted: oklch(0.955 0.008 215);
-  --muted-foreground: oklch(0.52 0.02 232);
-  --accent: oklch(0.93 0.035 195);
-  --accent-foreground: oklch(0.28 0.06 210);
+  --popover-foreground: oklch(0.22 0.01 220);
+  --primary: oklch(0.42 0.075 192);
+  --primary-foreground: oklch(0.99 0.003 190);
+  --secondary: oklch(0.955 0.003 210);
+  --secondary-foreground: oklch(0.3 0.01 220);
+  --muted: oklch(0.962 0.003 210);
+  --muted-foreground: oklch(0.52 0.01 220);
+  --accent: oklch(0.95 0.025 190);
+  --accent-foreground: oklch(0.34 0.07 192);
   --destructive: oklch(0.55 0.19 25);
   --destructive-foreground: oklch(0.99 0.005 200);
-  --warning: oklch(0.78 0.13 78);
-  --warning-foreground: oklch(0.28 0.06 60);
-  --success: oklch(0.6 0.1 155);
+  --warning: oklch(0.8 0.13 78);
+  --warning-foreground: oklch(0.38 0.08 60);
+  --success: oklch(0.58 0.09 160);
   --success-foreground: oklch(0.99 0.005 200);
-  --border: oklch(0.9 0.012 220);
-  --input: oklch(0.9 0.012 220);
-  --ring: oklch(0.48 0.09 205);
-  --sidebar: oklch(0.24 0.035 235);
-  --sidebar-foreground: oklch(0.93 0.01 215);
-  --sidebar-primary: oklch(0.6 0.1 200);
-  --sidebar-primary-foreground: oklch(0.15 0.02 235);
-  --sidebar-accent: oklch(0.3 0.04 235);
-  --sidebar-accent-foreground: oklch(0.97 0.005 215);
-  --sidebar-border: oklch(0.32 0.035 235);
-  --sidebar-ring: oklch(0.6 0.1 200);
+  --border: oklch(0.915 0.004 210);
+  --input: oklch(0.89 0.005 210);
+  --ring: oklch(0.42 0.075 192);
+  --sidebar: oklch(1 0 0);
+  --sidebar-foreground: oklch(0.22 0.01 220);
+  --sidebar-primary: oklch(0.42 0.075 192);
+  --sidebar-primary-foreground: oklch(0.99 0.003 190);
+  --sidebar-accent: oklch(0.95 0.025 190);
+  --sidebar-accent-foreground: oklch(0.34 0.07 192);
+  --sidebar-border: oklch(0.915 0.004 210);
+  --sidebar-ring: oklch(0.42 0.075 192);
 }
 
 .dark {
