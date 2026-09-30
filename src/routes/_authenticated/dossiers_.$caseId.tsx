@@ -1,3 +1,4 @@
+import { UPLOAD_ACCEPT } from "@/lib/file-signature";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -88,6 +89,7 @@ function CasePage() {
   const [busy, setBusy] = useState<string | null>(null);
   const [conf, setConf] = useState("MEDICAL");
   const [edits, setEdits] = useState<Record<string, string>>({});
+  const [workerUrl, setWorkerUrl] = useState<string | null>(null);
 
   async function run(key: string, fn: () => Promise<unknown>, ok?: string) {
     setBusy(key);
@@ -228,7 +230,7 @@ function CasePage() {
             <select className="rounded-md border border-input bg-background px-2 py-1 text-sm" value={conf} onChange={(e) => setConf(e.target.value)}>
               {Object.entries(CONF_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
             </select>
-            <input type="file" accept=".pdf,image/*,.txt" disabled={!!busy} onChange={(e) => { const f = e.target.files?.[0]; if (f) upload(f); e.target.value = ""; }} className="text-sm" />
+            <input type="file" accept={UPLOAD_ACCEPT} disabled={!!busy} onChange={(e) => { const f = e.target.files?.[0]; if (f) upload(f); e.target.value = ""; }} className="text-sm" />
             {busy === "upload" && <span className="text-sm text-muted-foreground">Dépôt et analyse (OCR, classification, chronologie)…</span>}
           </div>
           <div className="panel divide-y divide-border">
@@ -255,7 +257,7 @@ function CasePage() {
 
         <TabsContent value="brouillons" className="space-y-4">
           <div className="flex flex-wrap gap-2">
-            <Button disabled={!!busy} onClick={() => run("sum", () => summary({ data: { caseId } }), "Synthèse générée (brouillon)")}>{busy === "sum" ? "Génération…" : "Générer la synthèse IA"}</Button>
+            <Button disabled={!!busy} onClick={() => run("sum", async () => { const r = await summary({ data: { caseId } }); if (!r.ok) toast.warning(r.reason); else toast.success(r.reason || "Synthèse générée (brouillon)"); })}>{busy === "sum" ? "Génération…" : "Générer la synthèse IA"}</Button>
             <Button variant="outline" disabled={!!busy} onClick={() => run("notice", () => notice({ data: { caseId } }), "Courrier employeur préparé")}>Préparer le courrier employeur</Button>
           </div>
           <p className="text-xs text-muted-foreground">Tout contenu généré reste un brouillon jusqu'à validation par le rôle requis. Le courrier employeur est produit depuis un modèle sans aucune donnée médicale.</p>
@@ -283,7 +285,13 @@ function CasePage() {
         </TabsContent>
 
         <TabsContent value="coordination" className="space-y-4">
-          <Button variant="outline" className="mr-2" disabled={!!busy} onClick={() => run("wlink", () => workerLink({ data: { caseId, origin: window.location.origin } }), "Lien salarié envoyé (simulé) — voir « Messages simulés »")}>Envoyer le lien salarié</Button>
+          <Button variant="outline" className="mr-2" disabled={!!busy} onClick={() => run("wlink", async () => { const r = await workerLink({ data: { caseId, origin: window.location.origin } }); setWorkerUrl(r.link); }, "Lien salarié envoyé (simulé)")}>Envoyer le lien salarié</Button>
+          {workerUrl && (
+            <div className="panel space-y-1 p-3 text-sm">
+              <p className="font-medium">Lien salarié (affiché une seule fois, non conservé) :</p>
+              <code className="block break-all text-xs">{workerUrl}</code>
+            </div>
+          )}
           <Button disabled={!!busy} onClick={() => run("plan", async () => { const r = await plan({ data: { caseId } }); toast.success(`${r.created} action(s) planifiée(s)`); })}>Planifier les relances</Button>
           <p className="text-xs text-muted-foreground">L'agent de coordination prépare les relances (pièces manquantes, rendez-vous, échéances) sans jamais donner de conseil médical. Aucun service SMS/email n'est encore connecté : « Envoyer » marque la relance comme envoyée.</p>
           {data.tasks.map((t) => (

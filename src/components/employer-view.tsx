@@ -1,3 +1,4 @@
+import { UPLOAD_ACCEPT } from "@/lib/file-signature";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
@@ -81,7 +82,7 @@ export function EmployerView({ asCompanyId }: { asCompanyId?: string }) {
             ))}
             {!readOnly && <label className="cursor-pointer text-primary hover:underline">
               Envoyer une fiche de poste
-              <input type="file" className="hidden" accept=".pdf,image/*,.doc,.docx" onChange={async (e) => {
+              <input type="file" className="hidden" accept={UPLOAD_ACCEPT} onChange={async (e) => {
                 const f = e.target.files?.[0];
                 e.target.value = "";
                 if (f) await act(async () => fUpload({ data: { caseId: c.id, filename: f.name, mimeType: f.type || "application/octet-stream", base64: await fileToBase64(f) } }), "Document envoyé");
