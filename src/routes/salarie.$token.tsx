@@ -116,7 +116,7 @@ function WorkerPortal() {
           <div className="panel space-y-2 p-5 text-sm">
             <h2 className="font-semibold">Mon arrêt</h2>
             {data.periods.map((p: any, i: number) => <p key={i} className="text-muted-foreground">Du {frDate(p.start)} au {p.end ? frDate(p.end) : "date non connue"}</p>)}
-            {data.deadlines.map((d: any) => <p key={d.code}>• {d.label}{d.due ? ` — avant le ${frDate(d.due)}` : ""}</p>)}
+            {data.deadlines.map((d: any) => <p key={d.code}>• {d.label}{d.due ? ` — avant le ${frDate(d.due)}` : ""} <span className="text-xs text-muted-foreground">(à valider juridiquement)</span></p>)}
           </div>
 
           {(data.messages.length > 0 || data.documents.length > 0) && (

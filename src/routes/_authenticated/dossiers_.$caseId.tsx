@@ -18,9 +18,11 @@ import {
   updateTask,
   lowerDocumentConfidentiality,
   releaseDocument,
+  updateCaseLegalFacts,
+  addAvis,
 } from "@/lib/cases.functions";
 import { createWorkerLink } from "@/lib/portal.functions";
-import { CONF_LABELS, ROLE_LABELS } from "@/lib/rules";
+import { CONF_LABELS, LEGAL_CHECK_LABEL, ROLE_LABELS } from "@/lib/rules";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -51,6 +53,8 @@ const TASK_STATUS: Record<string, string> = { PENDING: "À envoyer", SENT: "Envo
 const RECIPIENT: Record<string, string> = { WORKER: "Salarié", EMPLOYER_HR: "Employeur", PDP_COORDINATOR: "Cellule PDP" };
 const fr = (s?: string | null) => (s ? new Date(`${s.slice(0, 10)}T12:00:00Z`).toLocaleDateString("fr-FR") : "—");
 
+const AVIS_LABELS: Record<string, string> = { APTITUDE: "Avis d'aptitude", APTITUDE_AMENAGEMENTS: "Aptitude avec aménagements", INAPTITUDE: "Avis d'inaptitude" };
+
 function ConfBadge({ level }: { level: string }) {
   return <Badge variant={level === "MEDICAL" ? "destructive" : "outline"}>{CONF_LABELS[level] ?? level}</Badge>;
 }
@@ -75,6 +79,10 @@ function CasePage() {
   const task = useServerFn(updateTask);
   const lowerConf = useServerFn(lowerDocumentConfidentiality);
   const release = useServerFn(releaseDocument);
+  const saveFacts = useServerFn(updateCaseLegalFacts);
+  const saveAvis = useServerFn(addAvis);
+  const [avisType, setAvisType] = useState("INAPTITUDE");
+  const [avisDate, setAvisDate] = useState("");
   const workerLink = useServerFn(createWorkerLink);
 
   const [busy, setBusy] = useState<string | null>(null);
@@ -153,11 +161,46 @@ function CasePage() {
                   <p className="font-medium">{d.label}</p>
                   <p className="text-xs text-muted-foreground">{d.legalRef} · à partir du {fr(d.from)} · limite {fr(d.due)}</p>
                 </div>
-                <Badge variant={DEADLINE_STATUS[d.status]!.v}>{DEADLINE_STATUS[d.status]!.label}</Badge>
+                <div className="flex gap-2">
+                  <Badge variant="outline">{LEGAL_CHECK_LABEL}</Badge>
+                  <Badge variant={DEADLINE_STATUS[d.status]!.v}>{DEADLINE_STATUS[d.status]!.label}</Badge>
+                </div>
               </div>
             ))}
           </div>
-          <p className="text-xs text-muted-foreground">Échéances calculées par le moteur de règles, à titre indicatif.</p>
+          <p className="text-xs text-muted-foreground">Échéances calculées par le moteur de règles, à titre indicatif : chaque règle reste {LEGAL_CHECK_LABEL}.</p>
+          <div className="panel space-y-3 p-4">
+            <h2 className="font-medium">Informations pour le calcul des échéances</h2>
+            <form
+              className="flex flex-wrap items-end gap-3 text-sm"
+              onSubmit={(e) => {
+                e.preventDefault();
+                const fd = new FormData(e.currentTarget);
+                const known = String(fd.get("known") || "");
+                run("facts", () => saveFacts({ data: { caseId, employerKnownAt: known || null, cpamInvestigation: fd.get("cpam") === "on" } }), "Informations enregistrées");
+              }}
+            >
+              <label className="flex flex-col gap-1">
+                <span className="text-xs text-muted-foreground">Date de connaissance de l'accident par l'employeur</span>
+                <input name="known" type="date" defaultValue={data.facts.employerKnownAt ?? ""} className="rounded-md border border-input bg-background px-2 py-1" />
+              </label>
+              <label className="flex items-center gap-2">
+                <input name="cpam" type="checkbox" defaultChecked={data.facts.cpamInvestigation} /> Investigation CPAM en cours
+              </label>
+              <Button size="sm" type="submit" disabled={!!busy}>Enregistrer</Button>
+            </form>
+            <p className="text-xs text-muted-foreground">Sans date saisie, la déclaration AT est calculée depuis le début de l'arrêt.</p>
+            <div className="border-t border-border pt-3 text-sm">
+              <p className="mb-2">Dernier avis : {data.facts.avis ? `${AVIS_LABELS[data.facts.avis.type]} du ${fr(data.facts.avis.date)}` : "aucun"}</p>
+              <div className="flex flex-wrap items-end gap-3">
+                <select value={avisType} onChange={(e) => setAvisType(e.target.value)} className="rounded-md border border-input bg-background px-2 py-1">
+                  {Object.entries(AVIS_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                </select>
+                <input type="date" value={avisDate} onChange={(e) => setAvisDate(e.target.value)} className="rounded-md border border-input bg-background px-2 py-1" />
+                <Button size="sm" variant="outline" disabled={!!busy || !avisDate} title="Réservé au médecin du travail" onClick={() => run("avis", () => saveAvis({ data: { caseId, type: avisType as any, date: avisDate } }), "Avis enregistré")}>Saisir l'avis</Button>
+              </div>
+            </div>
+          </div>
         </TabsContent>
 
         <TabsContent value="chronologie" className="space-y-3">
