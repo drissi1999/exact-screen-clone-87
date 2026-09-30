@@ -86,14 +86,14 @@ export async function updatePlan(db: any, userId: string, i: { caseId: string; t
   const target = i.targetDate ?? plan.target_date;
 
   if (i.scenario && i.scenario !== plan.scenario) {
-    patch.scenario = i.scenario;
+    patch["scenario"] = i.scenario;
     // Open milestones are replaced by the new template; done tasks stay as history.
     await db.from("plan_tasks").delete().eq("plan_id", plan.id).eq("kind", "MILESTONE").eq("status", "TODO");
     await insertMilestones(db, tenantId, plan.id, i.caseId, i.scenario, target, !!plan.actual_return_date);
     await fact(db, userId, i.caseId, `Plan de retour : scénario changé (${SCENARIO_LABELS[plan.scenario as Scenario]} → ${SCENARIO_LABELS[i.scenario]})`);
   }
   if (i.targetDate && i.targetDate !== plan.target_date) {
-    patch.target_date = i.targetDate;
+    patch["target_date"] = i.targetDate;
     if (!i.scenario || i.scenario === plan.scenario) {
       // Move every open milestone with the target date, keeping its offset.
       const { data: open } = await db.from("plan_tasks").select("id, offset_days, offset_end_days").eq("plan_id", plan.id).eq("kind", "MILESTONE").eq("status", "TODO");
@@ -107,11 +107,11 @@ export async function updatePlan(db: any, userId: string, i: { caseId: string; t
     await fact(db, userId, i.caseId, `Plan de retour : date de reprise visée déplacée du ${frd(plan.target_date)} au ${frd(i.targetDate)}`);
   }
   if (i.status && i.status !== plan.status) {
-    patch.status = i.status;
+    patch["status"] = i.status;
     await fact(db, userId, i.caseId, `Plan de retour : statut « ${STATUS_LABELS[i.status]} »`);
   }
-  if (i.notes !== undefined) patch.notes = i.notes;
-  if (i.partners) patch.partners = i.partners.map((p) => ({ label: p.label.slice(0, 80), contact: p.contact.slice(0, 200) }));
+  if (i.notes !== undefined) patch["notes"] = i.notes;
+  if (i.partners) patch["partners"] = i.partners.map((p) => ({ label: p.label.slice(0, 80), contact: p.contact.slice(0, 200) }));
   if (Object.keys(patch).length) await db.from("return_plans").update(patch).eq("id", plan.id);
   return { ok: true };
 }
