@@ -27,7 +27,6 @@ import { LEGAL_CHECK_LABEL, ROLE_LABELS, episodes, episodeDuration } from "@/lib
 import { getReturnPlan } from "@/lib/return-plan.functions";
 import { ConfLabel, CONF_TEXT, DeadlineBadge, EmptyState, PriorityIndicator, ReviewBadge, StatusBadge } from "@/components/kit";
 import { FileText, ListChecks, CalendarClock } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
