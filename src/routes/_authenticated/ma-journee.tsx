@@ -155,7 +155,7 @@ function MyDay() {
                 <div className="min-w-48 flex-1">
                   <button className="font-medium hover:underline" onClick={() => open(r.caseId)}>{r.worker}</button>
                   <p className="text-sm text-muted-foreground">{r.company}{r.origin ? ` · ${ORIGINS[r.origin] ?? r.origin}` : ""}</p>
-                  <p className="text-sm">{r.reason}</p>
+                  <p className="line-clamp-2 text-sm" title={r.reason}>{r.reason}</p>
                 </div>
                 <div className="w-48 text-sm">
                   {r.nextDeadline ? <><p className="truncate">{r.nextDeadline.label}</p><div className="mt-1"><DeadlineBadge due={r.nextDeadline.due} /></div><p className="mt-1 text-xs text-muted-foreground">à valider juridiquement</p></> : <p className="text-muted-foreground">Aucune échéance</p>}
