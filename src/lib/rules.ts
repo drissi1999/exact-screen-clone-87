@@ -29,14 +29,41 @@ function statusFor(from: string | null, due: string | null, today: string): Dead
   return "EN_COURS";
 }
 
+export type Episode = { start: string; end: string | null; stoppages: Stoppage[] };
+
+/**
+ * Groups a case's stoppages into episodes. Only contiguous periods merge: a period starting on or
+ * before the day after the current end (extension or overlap). A gap of 1 day or more starts a new
+ * episode. An open-ended period absorbs anything starting after it.
+ */
+export function episodes(stoppages: Stoppage[]): Episode[] {
+  const sorted = [...stoppages].sort((a, b) => a.start_date.localeCompare(b.start_date));
+  const out: Episode[] = [];
+  for (const s of sorted) {
+    const cur = out.at(-1);
+    if (cur && (cur.end === null || s.start_date <= addDays(cur.end, 1))) {
+      cur.stoppages.push(s);
+      if (cur.end !== null) cur.end = s.end_date === null ? null : s.end_date > cur.end ? s.end_date : cur.end;
+    } else {
+      out.push({ start: s.start_date, end: s.end_date, stoppages: [s] });
+    }
+  }
+  return out;
+}
+
+/** Continuous duration in calendar days (both ends included); an open episode runs until today. */
+export function episodeDuration(e: Episode, today = todayParis()): number {
+  return Math.round((toDate(e.end ?? today).getTime() - toDate(e.start).getTime()) / DAY) + 1;
+}
+
+/** Deadlines of the current (latest) episode. Pass only the stoppages of the CASE. */
 export function computeDeadlines(stoppages: Stoppage[], origin: string | null, today = todayParis()): Deadline[] {
   if (stoppages.length === 0) return [];
-  const sorted = [...stoppages].sort((a, b) => a.start_date.localeCompare(b.start_date));
-  const start = sorted[0]!.start_date;
-  const ends = sorted.map((s) => s.end_date);
-  const end = ends.includes(null) ? null : ends.sort().at(-1)!;
-  const refEnd = end ?? today;
-  const duration = Math.round((toDate(refEnd).getTime() - toDate(start).getTime()) / DAY) + 1;
+  const ep = episodes(stoppages).at(-1)!;
+  const sorted = ep.stoppages;
+  const start = ep.start;
+  const end = ep.end;
+  const duration = episodeDuration(ep, today);
   const o = origin ?? sorted[0]!.origin;
   const out: Deadline[] = [];
 
