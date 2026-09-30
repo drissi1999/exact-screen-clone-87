@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { computeDeadlines, maxConfidentiality, todayParis } from "./rules";
+import { canManageRole, refusalMessage } from "./role-policy";
 
 const CONF = z.enum(["MEDICAL", "PDP_SHARED", "ADMINISTRATIVE", "EMPLOYER_VISIBLE", "WORKER_VISIBLE"]);
 const ROLE = z.enum(["MEDECIN_TRAVAIL", "IDEST", "PDP_COORDINATOR", "SPSTI_ADMIN", "EMPLOYER_HR", "WORKER", "EXPERT"]);
@@ -67,15 +68,49 @@ export const setRole = createServerFn({ method: "POST" })
   .inputValidator((d) => z.object({ userId: z.string().uuid(), role: ROLE, enabled: z.boolean() }).parse(d))
   .handler(async ({ data, context }) => {
     const sb = context.supabase as any;
-    if (!(await hasRole(sb, "SPSTI_ADMIN", context.userId))) throw new Error("Réservé à l'administrateur SPSTI");
     const tenantId = await tenantOf(sb, context.userId);
+    const { data: mine } = await sb.from("user_roles").select("role").eq("user_id", context.userId).eq("tenant_id", tenantId);
+    const myRoles = (mine ?? []).map((r: any) => String(r.role));
+    if (!canManageRole(myRoles, data.role)) throw new Error(refusalMessage(data.role));
+    // The database policy (private.can_manage_role) is the real gate; these calls run as the user.
     if (data.enabled) {
       const { error } = await sb.from("user_roles").insert({ user_id: data.userId, tenant_id: tenantId, role: data.role });
-      if (error && !String(error.message).includes("duplicate")) throw new Error(error.message);
+      if (error && !String(error.message).includes("duplicate")) throw new Error(refusalMessage(data.role));
     } else {
-      await sb.from("user_roles").delete().eq("user_id", data.userId).eq("role", data.role);
+      const { data: gone, error } = await sb.from("user_roles").delete().eq("user_id", data.userId).eq("tenant_id", tenantId).eq("role", data.role).select("id");
+      if (error || (gone ?? []).length === 0) throw new Error(refusalMessage(data.role));
     }
     await audit(sb, tenantId, context.userId, data.enabled ? "ROLE_GRANT" : "ROLE_REVOKE", "user_roles", data.userId, null);
+    return { ok: true };
+  });
+
+export const getMedecinBootstrap = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const sb = context.supabase as any;
+    const { data } = await sb.from("tenants").select("medecin_bootstrapped_at").maybeSingle();
+    return { available: !!data && !data.medecin_bootstrapped_at };
+  });
+
+/** One-time designation of the tenant's first "médecin référent" by the SPSTI admin. */
+export const bootstrapMedecin = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ userId: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const sb = context.supabase as any;
+    const tenantId = await tenantOf(sb, context.userId);
+    if (!(await hasRole(sb, "SPSTI_ADMIN", context.userId))) throw new Error("Réservé à l'administrateur SPSTI.");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: target } = await supabaseAdmin.from("profiles").select("tenant_id").eq("user_id", data.userId).maybeSingle();
+    if (target?.tenant_id !== tenantId) throw new Error("Membre introuvable dans ce SPSTI.");
+    // Atomic claim: only succeeds once per tenant.
+    const { data: claimed } = await (supabaseAdmin as any)
+      .from("tenants").update({ medecin_bootstrapped_at: new Date().toISOString() })
+      .eq("id", tenantId).is("medecin_bootstrapped_at", null).select("id");
+    if (!claimed || claimed.length === 0) throw new Error("Le médecin référent a déjà été désigné.");
+    const { error } = await supabaseAdmin.from("user_roles").insert({ user_id: data.userId, tenant_id: tenantId, role: "MEDECIN_TRAVAIL" });
+    if (error && !String(error.message).includes("duplicate")) throw new Error(error.message);
+    await supabaseAdmin.from("audit_log").insert({ tenant_id: tenantId, user_id: context.userId, action: "MEDECIN_BOOTSTRAP", entity: "user_roles", entity_id: data.userId });
     return { ok: true };
   });
 

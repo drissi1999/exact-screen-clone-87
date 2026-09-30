@@ -2,7 +2,10 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { getMe, listAudit, listMembers, setRole } from "@/lib/cases.functions";
+import { bootstrapMedecin, getMe, getMedecinBootstrap, listAudit, listMembers, setRole } from "@/lib/cases.functions";
+import { canManageRole } from "@/lib/role-policy";
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
 import { ROLE_LABELS } from "@/lib/rules";
 import { Checkbox } from "@/components/ui/checkbox";
 
@@ -31,7 +34,12 @@ function TeamPage() {
   const { data: members } = useQuery({ queryKey: ["members"], queryFn: () => fMembers() });
   const { data: me } = useQuery({ queryKey: ["me"], queryFn: () => fMe() });
   const { data: logs } = useQuery({ queryKey: ["audit"], queryFn: () => fAudit() });
+  const fBoot = useServerFn(getMedecinBootstrap);
+  const fDoBoot = useServerFn(bootstrapMedecin);
+  const { data: boot } = useQuery({ queryKey: ["medecin-bootstrap"], queryFn: () => fBoot() });
+  const [pick, setPick] = useState("");
   const isAdmin = me?.roles.includes("SPSTI_ADMIN");
+  const myRoles = me?.roles ?? [];
   const names = new Map((members ?? []).map((m) => [m.userId, m.name]));
 
   async function toggle(userId: string, role: string, enabled: boolean) {
@@ -51,6 +59,17 @@ function TeamPage() {
           Les rôles déterminent les niveaux de confidentialité visibles. Seul le médecin du travail et l'IDEST accèdent aux données médicales.
         </p>
       </div>
+      <p className="text-xs text-muted-foreground">Les rôles Médecin du travail et Infirmier(e) santé travail ne peuvent être attribués ou retirés que par un médecin du travail de ce SPSTI.</p>
+      {isAdmin && boot?.available && (
+        <div className="panel flex flex-wrap items-center gap-3 p-4">
+          <p className="text-sm font-medium">Désigner le médecin référent (une seule fois) :</p>
+          <select className="rounded-md border border-input bg-background px-2 py-1 text-sm" value={pick} onChange={(e) => setPick(e.target.value)}>
+            <option value="">Choisir un membre…</option>
+            {members?.map((m) => <option key={m.userId} value={m.userId}>{m.name}</option>)}
+          </select>
+          <Button size="sm" disabled={!pick} onClick={async () => { try { await fDoBoot({ data: { userId: pick } }); toast.success("Médecin référent désigné"); qc.invalidateQueries(); } catch (e) { toast.error(e instanceof Error ? e.message : "Erreur"); } }}>Désigner</Button>
+        </div>
+      )}
       <div className="panel overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="border-b border-border text-left text-muted-foreground">
@@ -65,7 +84,7 @@ function TeamPage() {
                 <td className="px-4 py-3 font-medium">{m.name}</td>
                 {ROLES.map((r) => (
                   <td key={r} className="px-2 py-3 text-center">
-                    <Checkbox checked={m.roles.includes(r)} disabled={!isAdmin} onCheckedChange={(v) => toggle(m.userId, r, v === true)} />
+                    <Checkbox checked={m.roles.includes(r)} disabled={!canManageRole(myRoles, r)} onCheckedChange={(v) => toggle(m.userId, r, v === true)} />
                   </td>
                 ))}
               </tr>

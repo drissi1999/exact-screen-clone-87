@@ -1,4 +1,14 @@
 # Roadmap
+## Code review fixes (in order, with tests)
+- [x] 1) Médecin/IDEST roles grantable only by a médecin of same tenant + bootstrap; tenant-scoped role checks
+- [ ] 2) No direct client writes on drafts/events/documents/audit; audited MEDICAL reads
+- [ ] 3) Clinical doc types forced MEDICAL; downgrade médecin-only; generic titles for employer
+- [ ] 4) Deadlines from case stoppages, contiguous episode only
+- [ ] 5) New deadline rules + 25 unit tests
+- [ ] 6) Summary from approved events, citation check
+- [ ] 7) No clear links in simulated messages
+- [ ] 8) Upload file signature check
+
 - [x] Import pipeline, dashboard, cases
 - [x] Roles & confidentiality, audit log
 - [x] Documents: upload, AI OCR/classification, sourced chronology

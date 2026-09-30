@@ -23,3 +23,5 @@
 - Worker access = single-use 15-min link exchanged for a 30-min server session (`worker_links`/`worker_sessions`, service-role only). Why: workers have no account.
 - Invited employers are moved into the inviting tenant in `acceptInvitation` (the signup trigger cannot see app_metadata at insert time).
 - Admin "Voir en tant que" (/apercu): employer view reuses `getEmployerPortal` with `asCompanyId` (admin-only, read-only, audited); worker view issues a real worker link without a simulated SMS. Why: admin sees exactly what each audience sees, through the same code path.
+- MEDECIN_TRAVAIL/IDEST can only be granted/revoked by a MEDECIN_TRAVAIL of the same tenant (`private.can_manage_role` in the user_roles policies); first médecin via one-time `bootstrapMedecin` (tenants.medecin_bootstrapped_at). Why: admins must not self-escalate into medical data.
+- Tests: `bun run test`; `tests/integration/*` create and delete throw-away users against the live backend. Why: RLS can only be proven against the real database.
