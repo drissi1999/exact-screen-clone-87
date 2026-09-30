@@ -52,7 +52,7 @@ function MyDay() {
   const [ackFor, setAckFor] = useState<string | null>(null);
   const [ackNote, setAckNote] = useState("");
   async function submitAck(ids: string[]) {
-    if (ackNote.trim().length < 3) return toast.error("Une note est obligatoire");
+    if (ackNote.trim().length < 3) { toast.error("Une note est obligatoire"); return; }
     try {
       for (const taskId of ids) await ack({ data: { taskId, note: ackNote.trim() } });
       toast.success("Alerte prise en charge");
