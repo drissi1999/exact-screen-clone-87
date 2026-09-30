@@ -159,6 +159,51 @@ export type Database = {
           },
         ]
       }
+      case_avis: {
+        Row: {
+          avis_date: string
+          avis_type: string
+          case_id: string
+          created_at: string
+          created_by: string
+          id: string
+          tenant_id: string
+        }
+        Insert: {
+          avis_date: string
+          avis_type: string
+          case_id: string
+          created_at?: string
+          created_by: string
+          id?: string
+          tenant_id: string
+        }
+        Update: {
+          avis_date?: string
+          avis_type?: string
+          case_id?: string
+          created_at?: string
+          created_by?: string
+          id?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "case_avis_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "cases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "case_avis_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       case_events: {
         Row: {
           case_id: string
@@ -230,7 +275,9 @@ export type Database = {
         Row: {
           closed_at: string | null
           company_id: string
+          cpam_investigation: boolean
           created_at: string
+          employer_known_at: string | null
           id: string
           opened_at: string
           origin: Database["public"]["Enums"]["stoppage_origin"] | null
@@ -243,7 +290,9 @@ export type Database = {
         Insert: {
           closed_at?: string | null
           company_id: string
+          cpam_investigation?: boolean
           created_at?: string
+          employer_known_at?: string | null
           id?: string
           opened_at?: string
           origin?: Database["public"]["Enums"]["stoppage_origin"] | null
@@ -256,7 +305,9 @@ export type Database = {
         Update: {
           closed_at?: string | null
           company_id?: string
+          cpam_investigation?: boolean
           created_at?: string
+          employer_known_at?: string | null
           id?: string
           opened_at?: string
           origin?: Database["public"]["Enums"]["stoppage_origin"] | null
