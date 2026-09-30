@@ -15,3 +15,6 @@
 - All values exchanged with server functions must be JSON-serialisable primitives; raw import rows are stringified (`stringifyRaw`) because TanStack Start rejects `unknown` in server-function return types.
 - CSV uploads are decoded explicitly as UTF-8 before parsing; the spreadsheet reader otherwise guesses a legacy codepage and mangles accents.
 - UI copy is French, code and identifiers English.
+- Roles live in `user_roles` (never on profiles); confidentiality is enforced in RLS via `can_read_level()`, so server code never filters medical data by hand. Why: backend-layer enforcement of medical secrecy.
+- Legal deadlines only come from `src/lib/rules.ts`. Why: spec forbids inline deadline logic.
+- Employer-facing documents are built from templates with no medical inputs; AI outputs inherit `maxConfidentiality` of their inputs and stay DRAFT until approved by `required_role`.
