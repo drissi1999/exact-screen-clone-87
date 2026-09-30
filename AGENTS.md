@@ -8,3 +8,10 @@
 > Commits you push to the connected branch sync back to Lovable and show up in
 > the editor, so keep the branch in a working state.
 <!-- LOVABLE:END -->
+
+## Project rules
+
+- Import logic is split in three layers: `src/lib/import-core.ts` (pure parsing/validation, runs on both client and server), `src/lib/import-engine.server.ts` (database writes), `src/lib/imports.functions.ts` (server functions). Keeps the same validation rules usable in the browser preview and in the public ingest API.
+- All values exchanged with server functions must be JSON-serialisable primitives; raw import rows are stringified (`stringifyRaw`) because TanStack Start rejects `unknown` in server-function return types.
+- CSV uploads are decoded explicitly as UTF-8 before parsing; the spreadsheet reader otherwise guesses a legacy codepage and mangles accents.
+- UI copy is French, code and identifiers English.
