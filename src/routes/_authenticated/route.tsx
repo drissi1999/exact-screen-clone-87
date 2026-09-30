@@ -13,7 +13,8 @@ export const Route = createFileRoute("/_authenticated")({
 const NAV = [
   { to: "/tableau-de-bord", label: "Tableau de bord" },
   { to: "/dossiers", label: "Dossiers" },
-  { to: "/parametres/imports", label: "Paramètres · Imports" },
+  { to: "/parametres/imports", label: "Imports" },
+  { to: "/parametres/equipe", label: "Équipe · Accès" },
 ] as const;
 
 function AuthenticatedLayout() {

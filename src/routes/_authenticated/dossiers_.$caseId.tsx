@@ -1,0 +1,258 @@
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { useState } from "react";
+import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import {
+  analyzeDocument,
+  generateEmployerNotice,
+  generateSummary,
+  getCaseDetail,
+  getDocumentUrl,
+  getMe,
+  planCoordination,
+  registerDocument,
+  reviewDraft,
+  reviewEvent,
+  updateTask,
+} from "@/lib/cases.functions";
+import { CONF_LABELS, ROLE_LABELS } from "@/lib/rules";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
+
+export const Route = createFileRoute("/_authenticated/dossiers_/$caseId")({
+  head: () => ({
+    meta: [
+      { title: "Dossier — Reprise" },
+      { name: "description", content: "Dossier de maintien en emploi : chronologie sourcée, documents, brouillons et coordination." },
+      { property: "og:title", content: "Dossier — Reprise" },
+      { property: "og:description", content: "Dossier de maintien en emploi." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
+  component: CasePage,
+});
+
+const ORIGIN: Record<string, string> = { MALADIE: "Maladie", AT: "Accident du travail", MP: "Maladie professionnelle" };
+const DEADLINE_STATUS: Record<string, { label: string; v: "default" | "secondary" | "destructive" | "outline" }> = {
+  A_VENIR: { label: "À venir", v: "outline" },
+  EN_COURS: { label: "En cours", v: "default" },
+  DEPASSEE: { label: "Dépassée", v: "destructive" },
+  INFO: { label: "Dès la reprise connue", v: "secondary" },
+};
+const TASK_STATUS: Record<string, string> = { PENDING: "À envoyer", SENT: "Envoyé", ESCALATED: "Escaladé", DONE: "Terminé" };
+const RECIPIENT: Record<string, string> = { WORKER: "Salarié", EMPLOYER_HR: "Employeur", PDP_COORDINATOR: "Cellule PDP" };
+const fr = (s?: string | null) => (s ? new Date(`${s.slice(0, 10)}T12:00:00Z`).toLocaleDateString("fr-FR") : "—");
+
+function ConfBadge({ level }: { level: string }) {
+  return <Badge variant={level === "MEDICAL" ? "destructive" : "outline"}>{CONF_LABELS[level] ?? level}</Badge>;
+}
+
+function CasePage() {
+  const { caseId } = Route.useParams();
+  const qc = useQueryClient();
+  const fetchDetail = useServerFn(getCaseDetail);
+  const fetchMe = useServerFn(getMe);
+  const { data, isLoading, error } = useQuery({ queryKey: ["case", caseId], queryFn: () => fetchDetail({ data: { caseId } }) });
+  const { data: me } = useQuery({ queryKey: ["me"], queryFn: () => fetchMe() });
+  const refresh = () => qc.invalidateQueries({ queryKey: ["case", caseId] });
+
+  const register = useServerFn(registerDocument);
+  const analyze = useServerFn(analyzeDocument);
+  const docUrl = useServerFn(getDocumentUrl);
+  const evReview = useServerFn(reviewEvent);
+  const summary = useServerFn(generateSummary);
+  const notice = useServerFn(generateEmployerNotice);
+  const drReview = useServerFn(reviewDraft);
+  const plan = useServerFn(planCoordination);
+  const task = useServerFn(updateTask);
+
+  const [busy, setBusy] = useState<string | null>(null);
+  const [conf, setConf] = useState("MEDICAL");
+  const [edits, setEdits] = useState<Record<string, string>>({});
+
+  async function run(key: string, fn: () => Promise<unknown>, ok?: string) {
+    setBusy(key);
+    try {
+      await fn();
+      if (ok) toast.success(ok);
+      refresh();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erreur");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function upload(file: File) {
+    await run("upload", async () => {
+      const { data: prof } = await supabase.from("profiles").select("tenant_id").maybeSingle();
+      if (!prof) throw new Error("Profil introuvable");
+      const path = `${prof.tenant_id}/${caseId}/${crypto.randomUUID()}-${file.name.replace(/[^\w.\-]/g, "_")}`;
+      const { error: upErr } = await supabase.storage.from("case-documents").upload(path, file, { contentType: file.type });
+      if (upErr) throw new Error(upErr.message);
+      const { id } = await register({ data: { caseId, filename: file.name, storagePath: path, mimeType: file.type || "application/octet-stream", confidentiality: conf as any } });
+      toast.message("Document déposé, analyse en cours…");
+      const r = await analyze({ data: { documentId: id } });
+      toast.success(`Analyse terminée : ${r.events} fait(s) ajouté(s) à la chronologie`);
+    });
+  }
+
+  if (isLoading) return <p className="text-muted-foreground">Chargement…</p>;
+  if (error || !data) return <p className="text-destructive">Dossier introuvable ou accès refusé.</p>;
+  const docName = (id: string | null) => data.documents.find((d) => d.id === id)?.filename ?? "source non accessible";
+
+  return (
+    <div className="space-y-6">
+      <Link to="/dossiers" className="text-sm text-muted-foreground hover:underline">← Dossiers</Link>
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold">{data.case.worker}</h1>
+          <p className="text-sm text-muted-foreground">
+            {data.case.company}{data.case.jobTitle ? ` · ${data.case.jobTitle}` : ""} · {ORIGIN[data.case.origin ?? ""] ?? "Origine inconnue"} · ouvert le {fr(data.case.openedAt)}
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-1">
+          {me?.roles.map((r) => <Badge key={r} variant="secondary">{ROLE_LABELS[r] ?? r}</Badge>)}
+        </div>
+      </div>
+
+      <Tabs defaultValue="echeances">
+        <TabsList>
+          <TabsTrigger value="echeances">Échéances</TabsTrigger>
+          <TabsTrigger value="chronologie">Chronologie ({data.events.length})</TabsTrigger>
+          <TabsTrigger value="documents">Documents ({data.documents.length})</TabsTrigger>
+          <TabsTrigger value="brouillons">Brouillons ({data.drafts.length})</TabsTrigger>
+          <TabsTrigger value="coordination">Coordination ({data.tasks.length})</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="echeances" className="space-y-4">
+          <div className="panel p-4">
+            <h2 className="mb-2 font-medium">Arrêts</h2>
+            <ul className="space-y-1 text-sm">
+              {data.stoppages.map((s, i) => (
+                <li key={i}>{s.kind === "INITIAL" ? "Initial" : "Prolongation"} · {ORIGIN[s.origin]} · du {fr(s.start_date)} au {s.end_date ? fr(s.end_date) : "en cours"}</li>
+              ))}
+            </ul>
+          </div>
+          <div className="panel divide-y divide-border">
+            {data.deadlines.length === 0 && <p className="p-4 text-sm text-muted-foreground">Aucune échéance réglementaire applicable.</p>}
+            {data.deadlines.map((d) => (
+              <div key={d.code} className="flex flex-wrap items-center justify-between gap-2 p-4">
+                <div>
+                  <p className="font-medium">{d.label}</p>
+                  <p className="text-xs text-muted-foreground">{d.legalRef} · à partir du {fr(d.from)} · limite {fr(d.due)}</p>
+                </div>
+                <Badge variant={DEADLINE_STATUS[d.status]!.v}>{DEADLINE_STATUS[d.status]!.label}</Badge>
+              </div>
+            ))}
+          </div>
+          <p className="text-xs text-muted-foreground">Échéances calculées par le moteur de règles, à titre indicatif.</p>
+        </TabsContent>
+
+        <TabsContent value="chronologie" className="space-y-3">
+          {data.events.length === 0 && <p className="text-sm text-muted-foreground">Déposez et analysez des documents pour construire la chronologie.</p>}
+          {data.events.map((e) => (
+            <div key={e.id} className="panel flex flex-wrap items-start justify-between gap-3 p-4">
+              <div className="space-y-1">
+                <p className="text-sm font-medium">{e.event_date ? fr(e.event_date) : "Date à vérifier"} — {e.label}</p>
+                <p className="text-xs text-muted-foreground">Source : {docName(e.source_document_id)}, page {e.source_page ?? "à vérifier"}</p>
+                <div className="flex gap-2"><ConfBadge level={e.confidentiality} /><Badge variant={e.status === "APPROVED" ? "default" : "secondary"}>{e.status === "APPROVED" ? "Validé" : e.status === "REJECTED" ? "Rejeté" : "Brouillon IA"}</Badge></div>
+              </div>
+              {e.status === "DRAFT" && (
+                <div className="flex gap-2">
+                  <Button size="sm" variant="outline" disabled={!!busy} onClick={() => run(e.id, () => evReview({ data: { eventId: e.id, status: "APPROVED" } }))}>Valider</Button>
+                  <Button size="sm" variant="ghost" disabled={!!busy} onClick={() => run(e.id, () => evReview({ data: { eventId: e.id, status: "REJECTED" } }))}>Rejeter</Button>
+                </div>
+              )}
+            </div>
+          ))}
+        </TabsContent>
+
+        <TabsContent value="documents" className="space-y-4">
+          <div className="panel flex flex-wrap items-center gap-3 p-4">
+            <label className="text-sm">Confidentialité :</label>
+            <select className="rounded-md border border-input bg-background px-2 py-1 text-sm" value={conf} onChange={(e) => setConf(e.target.value)}>
+              {Object.entries(CONF_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+            </select>
+            <input type="file" accept=".pdf,image/*,.txt" disabled={!!busy} onChange={(e) => { const f = e.target.files?.[0]; if (f) upload(f); e.target.value = ""; }} className="text-sm" />
+            {busy === "upload" && <span className="text-sm text-muted-foreground">Dépôt et analyse (OCR, classification, chronologie)…</span>}
+          </div>
+          <div className="panel divide-y divide-border">
+            {data.documents.length === 0 && <p className="p-4 text-sm text-muted-foreground">Aucun document visible avec vos rôles.</p>}
+            {data.documents.map((d) => (
+              <div key={d.id} className="flex flex-wrap items-center justify-between gap-2 p-4">
+                <div>
+                  <p className="text-sm font-medium">{d.filename}</p>
+                  <p className="text-xs text-muted-foreground">{d.doc_type.replaceAll("_", " ").toLowerCase()} · {d.page_count ?? "?"} page(s) · analyse {d.analysis_status.toLowerCase()} · {fr(d.created_at)}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <ConfBadge level={d.confidentiality} />
+                  <Button size="sm" variant="outline" onClick={() => run(d.id, async () => { const { url } = await docUrl({ data: { documentId: d.id } }); if (url) window.open(url, "_blank"); })}>Ouvrir</Button>
+                  {d.analysis_status !== "DONE" && <Button size="sm" variant="ghost" disabled={!!busy} onClick={() => run(d.id, () => analyze({ data: { documentId: d.id } }), "Analyse terminée")}>Analyser</Button>}
+                </div>
+              </div>
+            ))}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="brouillons" className="space-y-4">
+          <div className="flex flex-wrap gap-2">
+            <Button disabled={!!busy} onClick={() => run("sum", () => summary({ data: { caseId } }), "Synthèse générée (brouillon)")}>{busy === "sum" ? "Génération…" : "Générer la synthèse IA"}</Button>
+            <Button variant="outline" disabled={!!busy} onClick={() => run("notice", () => notice({ data: { caseId } }), "Courrier employeur préparé")}>Préparer le courrier employeur</Button>
+          </div>
+          <p className="text-xs text-muted-foreground">Tout contenu généré reste un brouillon jusqu'à validation par le rôle requis. Le courrier employeur est produit depuis un modèle sans aucune donnée médicale.</p>
+          {data.drafts.map((d) => (
+            <div key={d.id} className="panel space-y-3 p-4">
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="font-medium">{d.kind === "SYNTHESE" ? "Synthèse du dossier" : "Courrier employeur"}</p>
+                <ConfBadge level={d.confidentiality} />
+                <Badge variant={d.status === "APPROVED" ? "default" : "secondary"}>{d.status === "APPROVED" ? `Validé le ${fr(d.approved_at)}` : d.status === "REJECTED" ? "Rejeté" : "Brouillon"}</Badge>
+                <span className="text-xs text-muted-foreground">Validation : {ROLE_LABELS[d.required_role]}</span>
+              </div>
+              {d.status === "DRAFT" ? (
+                <>
+                  <Textarea rows={10} value={edits[d.id] ?? d.draft_text} onChange={(e) => setEdits({ ...edits, [d.id]: e.target.value })} />
+                  <div className="flex gap-2">
+                    <Button size="sm" disabled={!!busy} onClick={() => run(d.id, () => drReview({ data: { draftId: d.id, status: "APPROVED", text: edits[d.id] ?? d.draft_text } }), "Document validé")}>Valider</Button>
+                    <Button size="sm" variant="ghost" disabled={!!busy} onClick={() => run(d.id, () => drReview({ data: { draftId: d.id, status: "REJECTED" } }))}>Rejeter</Button>
+                  </div>
+                </>
+              ) : (
+                <pre className="whitespace-pre-wrap font-sans text-sm">{d.approved_text ?? d.draft_text}</pre>
+              )}
+            </div>
+          ))}
+        </TabsContent>
+
+        <TabsContent value="coordination" className="space-y-4">
+          <Button disabled={!!busy} onClick={() => run("plan", async () => { const r = await plan({ data: { caseId } }); toast.success(`${r.created} action(s) planifiée(s)`); })}>Planifier les relances</Button>
+          <p className="text-xs text-muted-foreground">L'agent de coordination prépare les relances (pièces manquantes, rendez-vous, échéances) sans jamais donner de conseil médical. Aucun service SMS/email n'est encore connecté : « Envoyer » marque la relance comme envoyée.</p>
+          {data.tasks.map((t) => (
+            <div key={t.id} className="panel space-y-2 p-4">
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge variant="outline">{t.channel}</Badge>
+                <span className="text-sm font-medium">→ {RECIPIENT[t.recipient] ?? t.recipient}</span>
+                <Badge variant={t.status === "ESCALATED" ? "destructive" : t.status === "PENDING" ? "secondary" : "default"}>{TASK_STATUS[t.status] ?? t.status}</Badge>
+                {t.due_at && <span className="text-xs text-muted-foreground">échéance {fr(t.due_at)}</span>}
+              </div>
+              <p className="text-sm">{t.message}</p>
+              {t.escalated_reason && <p className="text-xs text-destructive">{t.escalated_reason}</p>}
+              {(t.status === "PENDING" || t.status === "SENT") && (
+                <div className="flex gap-2">
+                  {t.status === "PENDING" && <Button size="sm" variant="outline" disabled={!!busy} onClick={() => run(t.id, () => task({ data: { taskId: t.id, action: "SEND" } }), "Relance envoyée")}>Envoyer</Button>}
+                  <Button size="sm" variant="ghost" disabled={!!busy} onClick={() => run(t.id, () => task({ data: { taskId: t.id, action: "ESCALATE", reason: "Escalade vers un humain" } }))}>Escalader</Button>
+                  <Button size="sm" variant="ghost" disabled={!!busy} onClick={() => run(t.id, () => task({ data: { taskId: t.id, action: "DONE" } }))}>Terminé</Button>
+                </div>
+              )}
+            </div>
+          ))}
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}
