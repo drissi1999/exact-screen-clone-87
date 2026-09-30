@@ -1015,6 +1015,7 @@ export type Database = {
     Functions: {
       can_write_case: {
         Args: {
+          _actor: string
           _case: string
           _level: Database["public"]["Enums"]["confidentiality"]
         }
@@ -1037,9 +1038,12 @@ export type Database = {
         }
         Returns: undefined
       }
-      staff_case_items: { Args: { _case: string }; Returns: Json }
+      staff_case_items: {
+        Args: { _actor: string; _case: string }
+        Returns: Json
+      }
       staff_document: {
-        Args: { _doc: string; _purpose: string }
+        Args: { _actor: string; _doc: string; _purpose: string }
         Returns: Json
       }
     }
