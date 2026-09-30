@@ -83,8 +83,11 @@ run("confidentiality and templated coordination (live database)", () => {
     const doc = (await admin.from("documents").select("id").eq("tenant_id", tenant).eq("confidentiality", "MEDICAL").limit(1).single()).data;
     const { error } = await admin.from("documents").update({ confidentiality: "EMPLOYER_VISIBLE" }).eq("id", doc.id);
     expect(error?.message).toMatch(/MEDECIN_TRAVAIL/);
-    const { error: e2 } = await admin.from("case_events").update({ confidentiality: "ADMINISTRATIVE" }).eq("source_document_id", doc.id);
-    expect(e2?.message).toMatch(/MEDECIN_TRAVAIL/);
+    // Events of a MEDICAL document are pinned to MEDICAL whatever is written.
+    await admin.from("case_events").update({ confidentiality: "ADMINISTRATIVE" }).eq("source_document_id", doc.id);
+    const evs = (await admin.from("case_events").select("confidentiality").eq("source_document_id", doc.id)).data;
+    expect(evs.length).toBeGreaterThan(0);
+    expect(evs.every((e: any) => e.confidentiality === "MEDICAL")).toBe(true);
   });
 
   it("a coordinator cannot lower a document's level; a médecin can, and it is logged", async () => {
