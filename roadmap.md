@@ -5,9 +5,9 @@
 - [x] 3) Clinical doc types forced MEDICAL; downgrade médecin-only; generic titles for employer (+ coordination tasks server-only, templated text immutable)
 - [x] 4) Deadlines from case stoppages, contiguous episode only
 - [x] 5) New deadline rules + 25 unit tests
-- [ ] 6) Summary from approved events, citation check
-- [ ] 7) No clear links in simulated messages
-- [ ] 8) Upload file signature check
+- [x] 6) Summary from approved events, citation check
+- [x] 7) No clear links in simulated messages
+- [x] 8) Upload file signature check
 
 - [x] Import pipeline, dashboard, cases
 - [x] Roles & confidentiality, audit log
