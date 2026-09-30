@@ -77,7 +77,7 @@ export function EmployerView({ asCompanyId }: { asCompanyId?: string }) {
           ))}
           <div className="flex flex-wrap items-center gap-3 text-sm">
             {c.documents.map((d: any) => (
-              readOnly ? <span key={d.id} className="text-muted-foreground">{d.filename}</span> : <Button key={d.id} size="sm" variant="ghost" onClick={() => act(async () => { const { url } = await fUrl({ data: { documentId: d.id } }); if (url) window.open(url, "_blank"); }, "Ouverture…")}>{d.filename}</Button>
+              readOnly ? <span key={d.id} className="text-muted-foreground">{d.title}</span> : <Button key={d.id} size="sm" variant="ghost" onClick={() => act(async () => { const { url } = await fUrl({ data: { documentId: d.id } }); if (url) window.open(url, "_blank"); }, "Ouverture…")}>{d.title}</Button>
             ))}
             {!readOnly && <label className="cursor-pointer text-primary hover:underline">
               Envoyer une fiche de poste

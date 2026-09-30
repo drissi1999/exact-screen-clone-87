@@ -124,7 +124,7 @@ function WorkerPortal() {
               <h2 className="font-semibold">Messages et documents</h2>
               {data.messages.map((m: any) => <pre key={m.id} className="whitespace-pre-wrap font-sans">{m.text}</pre>)}
               {data.documents.map((d: any) => (
-                <Button key={d.id} variant="ghost" size="sm" onClick={() => act(async () => { const { url } = await fUrl({ data: { sessionToken: session, documentId: d.id } }); if (url) window.open(url, "_blank"); }, "Ouverture…")}>{d.filename}</Button>
+                <Button key={d.id} variant="ghost" size="sm" onClick={() => act(async () => { const { url } = await fUrl({ data: { sessionToken: session, documentId: d.id } }); if (url) window.open(url, "_blank"); }, "Ouverture…")}>{d.title}</Button>
               ))}
             </div>
           )}

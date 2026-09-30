@@ -71,6 +71,7 @@ function CasePage() {
   const drReview = useServerFn(reviewDraft);
   const plan = useServerFn(planCoordination);
   const task = useServerFn(updateTask);
+  const lowerConf = useServerFn(lowerDocumentConfidentiality);
   const workerLink = useServerFn(createWorkerLink);
 
   const [busy, setBusy] = useState<string | null>(null);
@@ -196,6 +197,7 @@ function CasePage() {
                   <ConfBadge level={d.confidentiality} />
                   <Button size="sm" variant="outline" onClick={() => run(d.id, async () => { const { url } = await docUrl({ data: { documentId: d.id } }); if (url) window.open(url, "_blank"); })}>Ouvrir</Button>
                   {d.analysis_status !== "DONE" && <Button size="sm" variant="ghost" disabled={!!busy} onClick={() => run(d.id, () => analyze({ data: { documentId: d.id } }), "Analyse terminée")}>Analyser</Button>}
+                  {d.confidentiality === "MEDICAL" && <Button size="sm" variant="ghost" disabled={!!busy} title="Réservé au médecin du travail, tracé" onClick={() => { if (confirm("Abaisser ce document en « Partagé PDP » ? Action réservée au médecin du travail et tracée.")) run(d.id, () => lowerConf({ data: { documentId: d.id, level: "PDP_SHARED" } }), "Niveau abaissé"); }}>Abaisser</Button>}
                 </div>
               </div>
             ))}
