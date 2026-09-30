@@ -326,7 +326,7 @@ export const getWorkerPortal = createServerFn({ method: "POST" })
     const { db, caseId, expiresAt } = await workerSession(data.sessionToken);
     const { data: c } = await db.from("cases").select("id, status, origin, worker_id, workers(first_name), companies(name)").eq("id", caseId).single();
     const [st, docs, drafts, tasks, sent] = await Promise.all([
-      db.from("work_stoppages").select("start_date, end_date, origin, kind").eq("worker_id", c.worker_id).order("start_date"),
+      db.from("work_stoppages").select("start_date, end_date, origin, kind").eq("case_id", caseId).order("start_date"),
       db.from("documents").select("id, doc_type, source, filename, created_at").eq("case_id", caseId).eq("confidentiality", "WORKER_VISIBLE"),
       db.from("ai_drafts").select("id, approved_text, approved_at").eq("case_id", caseId).eq("confidentiality", "WORKER_VISIBLE").eq("status", "APPROVED"),
       db.from("coordination_tasks").select("id, message, status, due_at").eq("case_id", caseId).eq("recipient", "WORKER").in("status", ["SENT", "DONE"]),
