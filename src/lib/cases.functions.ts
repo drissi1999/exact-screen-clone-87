@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { computeDeadlines, maxConfidentiality, todayParis } from "./rules";
 import { canManageRole, refusalMessage } from "./role-policy";
+import { renderTemplate, type TemplateCode } from "./message-templates";
 
 const CONF = z.enum(["MEDICAL", "PDP_SHARED", "ADMINISTRATIVE", "EMPLOYER_VISIBLE", "WORKER_VISIBLE"]);
 const ROLE = z.enum(["MEDECIN_TRAVAIL", "IDEST", "PDP_COORDINATOR", "SPSTI_ADMIN", "EMPLOYER_HR", "WORKER", "EXPERT"]);
@@ -370,25 +371,22 @@ export const planCoordination = createServerFn({ method: "POST" })
     const already = new Set((existing ?? []).map((t: any) => t.purpose));
     const today = todayParis();
     const tasks: any[] = [];
-    const add = (purpose: string, recipient: string, channel: string, message: string, due: string | null) => {
-      if (!already.has(purpose)) tasks.push({ tenant_id: tenantId, case_id: data.caseId, purpose, recipient, channel, message, due_at: due });
+    const addT = (code: TemplateCode, due: string | null) => {
+      if (!already.has(code)) tasks.push({ tenant_id: tenantId, case_id: data.caseId, purpose: code, due_at: due, ...renderTemplate(code, { firstName: c.workers?.first_name ?? "", due }) });
     };
-    const name = c.workers?.first_name ?? "";
-    if (!have.has("ARRET_TRAVAIL"))
-      add("DOC_ARRET", "WORKER", "SMS", `Bonjour ${name}, votre service de santé au travail vous accompagne. Pourriez-vous nous transmettre une copie de votre dernier arrêt de travail via le lien sécurisé ? Merci.`, today);
-    if (!have.has("FICHE_POSTE"))
-      add("DOC_FICHE_POSTE", "EMPLOYER_HR", "EMAIL", `Bonjour, dans le cadre de l'accompagnement d'un de vos salariés, pourriez-vous nous transmettre sa fiche de poste à jour ? Cordialement, le service de prévention et de santé au travail.`, today);
-    if (c.origin === "AT" && !have.has("DECLARATION_AT"))
-      add("DOC_DAT", "EMPLOYER_HR", "EMAIL", `Bonjour, merci de nous transmettre une copie de la déclaration d'accident du travail concernant votre salarié. Cordialement.`, today);
+    if (!have.has("ARRET_TRAVAIL")) addT("DOC_ARRET", today);
+    if (!have.has("FICHE_POSTE")) addT("DOC_FICHE_POSTE", today);
+    if (c.origin === "AT" && !have.has("DECLARATION_AT")) addT("DOC_DAT", today);
     for (const d of computeDeadlines(st ?? [], c.origin)) {
-      if (d.code === "PRE_REPRISE" && d.status === "EN_COURS")
-        add("RDV_PRE_REPRISE", "WORKER", "SMS", `Bonjour ${name}, vous pouvez bénéficier d'une visite de pré-reprise avec le médecin du travail pour préparer votre retour. Répondez OUI pour être rappelé(e) et choisir un créneau.`, d.due);
-      if (d.code === "VISITE_REPRISE" && d.due)
-        add("RDV_REPRISE", "EMPLOYER_HR", "EMAIL", `Bonjour, la visite de reprise de votre salarié doit être organisée au plus tard le ${new Date(`${d.due}T12:00:00Z`).toLocaleDateString("fr-FR")}. Merci de nous confirmer sa date de reprise.`, d.due);
-      if (d.status === "DEPASSEE")
-        add(`ESC_${d.code}`, "PDP_COORDINATOR", "INTERNE", `Échéance dépassée : ${d.label}. Intervention humaine requise.`, d.due);
+      if (d.code === "PRE_REPRISE" && d.status === "EN_COURS") addT("RDV_PRE_REPRISE", d.due);
+      if (d.code === "VISITE_REPRISE" && d.due) addT("RDV_REPRISE", d.due);
+      if (d.status === "DEPASSEE" && !already.has(`ESC_${d.code}`))
+        tasks.push({ tenant_id: tenantId, case_id: data.caseId, purpose: `ESC_${d.code}`, recipient: "PDP_COORDINATOR", channel: "INTERNE", message: `Échéance dépassée : ${d.label}. Intervention humaine requise.`, due_at: d.due });
     }
-    if (tasks.length) await sb.from("coordination_tasks").insert(tasks);
+    if (tasks.length) {
+      const { error } = await (await db()).from("coordination_tasks").insert(tasks);
+      if (error) throw new Error(error.message);
+    }
     await audit(sb, tenantId, context.userId, "COORD_PLAN", "coordination_tasks", null, data.caseId);
     return { created: tasks.length };
   });
@@ -404,7 +402,11 @@ export const updateTask = createServerFn({ method: "POST" })
         : data.action === "ESCALATE"
           ? { status: "ESCALATED", escalated_reason: data.reason ?? "Escalade manuelle" }
           : { status: "DONE" };
-    const { data: t } = await sb.from("coordination_tasks").update(patch).eq("id", data.taskId).select("id, case_id, recipient, channel, message, purpose, tenant_id").single();
+    // RLS read proves the task is in the caller's tenant; the write itself goes through the admin client.
+    const { data: own } = await sb.from("coordination_tasks").select("id, case_id").eq("id", data.taskId).maybeSingle();
+    if (!own) throw new Error("Tâche introuvable");
+    await assertCanWrite(context.userId, own.case_id, "ADMINISTRATIVE");
+    const { data: t } = await (await db()).from("coordination_tasks").update(patch).eq("id", own.id).select("id, case_id, recipient, channel, message, purpose, tenant_id").single();
     if (t && data.action === "SEND") {
       const { data: c } = await sb.from("cases").select("workers(first_name, last_name, email, phone), companies(name)").eq("id", t.case_id).maybeSingle();
       const toWorker = t.recipient === "WORKER";
@@ -420,5 +422,17 @@ export const updateTask = createServerFn({ method: "POST" })
       });
     }
     await audit(sb, await tenantOf(sb, context.userId), context.userId, `TASK_${data.action}`, "coordination_tasks", t?.id ?? null, t?.case_id ?? null);
+    return { ok: true };
+  });
+
+/* --------------------------- confidentiality --------------------------- */
+
+/** Lowering a level: MEDECIN_TRAVAIL only, checked and logged in public.lower_document_confidentiality. */
+export const lowerDocumentConfidentiality = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ documentId: z.string().uuid(), level: CONF }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { error } = await (await db()).rpc("lower_document_confidentiality", { _actor: context.userId, _doc: data.documentId, _level: data.level });
+    if (error) throw new Error(error.message.includes("role") ? "Seul le médecin du travail peut abaisser la confidentialité" : "Changement refusé");
     return { ok: true };
   });
