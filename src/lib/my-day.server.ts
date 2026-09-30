@@ -103,7 +103,7 @@ export async function buildMyDay(db: any, userId: string, today = todayParis()) 
     if (todayD) groups.AUJOURDHUI.push({ ...base, reason: `Échéance aujourd'hui : ${todayD.label}`, action: deadlineAction(todayD) });
     const weekD = dl.find((d) => d.status !== "DEPASSEE" && d.due! > today && d.due! <= week);
     if (weekD) groups.SEMAINE.push({ ...base, reason: `Échéance le ${weekD.due} : ${weekD.label}`, action: deadlineAction(weekD) });
-    if (String(c.created_at).slice(0, 10) >= weekAgo) groups.NOUVEAUX.push({ ...base, reason: `Nouveau dossier (ouvert le ${c.opened_at})`, action: "RDV_LIAISON" });
+    if (String(c.opened_at) >= weekAgo) groups.NOUVEAUX.push({ ...base, reason: `Nouveau dossier (ouvert le ${c.opened_at})`, action: "RDV_LIAISON" });
     const dm = docMap.get(c.id);
     if (dm?.draft_facts) groups.DOCUMENTS.push({ ...base, reason: `${dm.draft_facts} fait(s) à valider`, action: "VALIDER" });
     else if (dm?.publishable) groups.DOCUMENTS.push({ ...base, reason: `${dm.publishable} document(s) prêt(s) à publier`, action: "PUBLIER" });
