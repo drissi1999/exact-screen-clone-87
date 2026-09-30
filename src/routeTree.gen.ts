@@ -14,6 +14,7 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedDossiersRouteImport } from './routes/_authenticated/dossiers'
 import { Route as AuthenticatedTableauDeBordRouteImport } from './routes/_authenticated/tableau-de-bord'
+import { Route as AuthenticatedParametresImportsRouteImport } from './routes/_authenticated/parametres.imports'
 import { Route as ApiPublicIngestStoppagesRouteImport } from './routes/api/public/ingest/stoppages'
 
 const IndexRoute = IndexRouteImport.update({
@@ -41,6 +42,12 @@ const AuthenticatedTableauDeBordRoute =
     path: '/tableau-de-bord',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedParametresImportsRoute =
+  AuthenticatedParametresImportsRouteImport.update({
+    id: '/parametres/imports',
+    path: '/parametres/imports',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const ApiPublicIngestStoppagesRoute =
   ApiPublicIngestStoppagesRouteImport.update({
     id: '/api/public/ingest/stoppages',
@@ -53,6 +60,7 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/dossiers': typeof AuthenticatedDossiersRoute
   '/tableau-de-bord': typeof AuthenticatedTableauDeBordRoute
+  '/parametres/imports': typeof AuthenticatedParametresImportsRoute
   '/api/public/ingest/stoppages': typeof ApiPublicIngestStoppagesRoute
 }
 export interface FileRoutesByTo {
@@ -60,6 +68,7 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/dossiers': typeof AuthenticatedDossiersRoute
   '/tableau-de-bord': typeof AuthenticatedTableauDeBordRoute
+  '/parametres/imports': typeof AuthenticatedParametresImportsRoute
   '/api/public/ingest/stoppages': typeof ApiPublicIngestStoppagesRoute
 }
 export interface FileRoutesById {
@@ -69,6 +78,7 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/_authenticated/dossiers': typeof AuthenticatedDossiersRoute
   '/_authenticated/tableau-de-bord': typeof AuthenticatedTableauDeBordRoute
+  '/_authenticated/parametres/imports': typeof AuthenticatedParametresImportsRoute
   '/api/public/ingest/stoppages': typeof ApiPublicIngestStoppagesRoute
 }
 export interface FileRouteTypes {
@@ -78,6 +88,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/dossiers'
     | '/tableau-de-bord'
+    | '/parametres/imports'
     | '/api/public/ingest/stoppages'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -85,6 +96,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/dossiers'
     | '/tableau-de-bord'
+    | '/parametres/imports'
     | '/api/public/ingest/stoppages'
   id:
     | '__root__'
@@ -93,6 +105,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/_authenticated/dossiers'
     | '/_authenticated/tableau-de-bord'
+    | '/_authenticated/parametres/imports'
     | '/api/public/ingest/stoppages'
   fileRoutesById: FileRoutesById
 }
@@ -140,6 +153,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedTableauDeBordRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/parametres/imports': {
+      id: '/_authenticated/parametres/imports'
+      path: '/parametres/imports'
+      fullPath: '/parametres/imports'
+      preLoaderRoute: typeof AuthenticatedParametresImportsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/api/public/ingest/stoppages': {
       id: '/api/public/ingest/stoppages'
       path: '/api/public/ingest/stoppages'
@@ -153,11 +173,13 @@ declare module '@tanstack/react-router' {
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedDossiersRoute: typeof AuthenticatedDossiersRoute
   AuthenticatedTableauDeBordRoute: typeof AuthenticatedTableauDeBordRoute
+  AuthenticatedParametresImportsRoute: typeof AuthenticatedParametresImportsRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDossiersRoute: AuthenticatedDossiersRoute,
   AuthenticatedTableauDeBordRoute: AuthenticatedTableauDeBordRoute,
+  AuthenticatedParametresImportsRoute: AuthenticatedParametresImportsRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
