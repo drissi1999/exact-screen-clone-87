@@ -1,6 +1,6 @@
 # Roadmap
 ## Code review fixes (in order, with tests)
-- [ ] 1) Médecin/IDEST roles grantable only by a médecin of same tenant + bootstrap; tenant-scoped role checks
+- [x] 1) Médecin/IDEST roles grantable only by a médecin of same tenant + bootstrap; tenant-scoped role checks
 - [ ] 2) No direct client writes on drafts/events/documents/audit; audited MEDICAL reads
 - [ ] 3) Clinical doc types forced MEDICAL; downgrade médecin-only; generic titles for employer
 - [ ] 4) Deadlines from case stoppages, contiguous episode only
