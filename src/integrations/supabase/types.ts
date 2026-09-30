@@ -759,6 +759,104 @@ export type Database = {
           },
         ]
       }
+      plan_tasks: {
+        Row: {
+          case_id: string
+          code: string
+          created_at: string
+          document_id: string | null
+          done_at: string | null
+          done_by: string | null
+          due_date: string
+          due_end: string | null
+          id: string
+          kind: string
+          offset_days: number
+          offset_end_days: number | null
+          outcome: string | null
+          owner_role: string
+          partner_label: string | null
+          plan_id: string
+          requires_document: boolean
+          status: string
+          tenant_id: string
+          title: string
+        }
+        Insert: {
+          case_id: string
+          code: string
+          created_at?: string
+          document_id?: string | null
+          done_at?: string | null
+          done_by?: string | null
+          due_date: string
+          due_end?: string | null
+          id?: string
+          kind?: string
+          offset_days?: number
+          offset_end_days?: number | null
+          outcome?: string | null
+          owner_role: string
+          partner_label?: string | null
+          plan_id: string
+          requires_document?: boolean
+          status?: string
+          tenant_id: string
+          title: string
+        }
+        Update: {
+          case_id?: string
+          code?: string
+          created_at?: string
+          document_id?: string | null
+          done_at?: string | null
+          done_by?: string | null
+          due_date?: string
+          due_end?: string | null
+          id?: string
+          kind?: string
+          offset_days?: number
+          offset_end_days?: number | null
+          outcome?: string | null
+          owner_role?: string
+          partner_label?: string | null
+          plan_id?: string
+          requires_document?: boolean
+          status?: string
+          tenant_id?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "plan_tasks_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "cases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "plan_tasks_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "plan_tasks_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "return_plans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "plan_tasks_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           company_id: string | null
@@ -791,6 +889,66 @@ export type Database = {
           },
           {
             foreignKeyName: "profiles_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      return_plans: {
+        Row: {
+          actual_return_date: string | null
+          case_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          notes: string | null
+          partners: Json
+          scenario: string
+          status: string
+          target_date: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          actual_return_date?: string | null
+          case_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          partners?: Json
+          scenario: string
+          status?: string
+          target_date: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          actual_return_date?: string | null
+          case_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          partners?: Json
+          scenario?: string
+          status?: string
+          target_date?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "return_plans_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: true
+            referencedRelation: "cases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "return_plans_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -1121,6 +1279,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      add_plan_event: {
+        Args: { _actor: string; _case: string; _label: string }
+        Returns: undefined
+      }
       can_write_case: {
         Args: {
           _actor: string
