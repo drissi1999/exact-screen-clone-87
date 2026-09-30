@@ -54,7 +54,7 @@ export function EmployerView({ asCompanyId }: { asCompanyId?: string }) {
             <div className="space-y-1 text-sm">
               <p className="font-medium">Échéances vous concernant</p>
               {c.deadlines.map((d: any) => (
-                <p key={d.code} className="text-muted-foreground">{d.label} — limite {frDate(d.due)} <Badge variant={d.status === "DEPASSEE" ? "destructive" : "outline"}>{STATUS[d.status]}</Badge></p>
+                <p key={d.code} className="text-muted-foreground">{d.label} — limite {frDate(d.due)} <Badge variant={d.status === "DEPASSEE" ? "destructive" : "outline"}>{STATUS[d.status]}</Badge> <Badge variant="outline">à valider juridiquement</Badge></p>
               ))}
             </div>
           )}

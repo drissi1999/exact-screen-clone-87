@@ -2,11 +2,11 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   stringifyRaw,
-  qualifiesForCase,
   rowFingerprint,
   sha256,
   type NormalizedRow,
 } from "./import-core";
+import { episodeDuration, episodes, todayParis } from "./rules";
 
 type Client = SupabaseClient<any, any, any>;
 
@@ -63,6 +63,7 @@ export async function commitRows(
 
   const companyCache = new Map<string, string>();
   const workerCache = new Map<string, string>();
+  const touchedWorkers = new Set<string>();
 
   for (const row of rows) {
     try {
@@ -77,44 +78,17 @@ export async function commitRows(
         .eq("row_hash", hash)
         .maybeSingle();
       if (existing) {
+        touchedWorkers.add(workerId);
         counts.rowsSkipped += 1;
         continue;
       }
 
-      const { data: openCase } = await client
-        .from("cases")
-        .select("id")
-        .eq("tenant_id", tenantId)
-        .eq("worker_id", workerId)
-        .eq("status", "OPEN")
-        .order("opened_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      let caseId: string | null = openCase?.id ?? null;
-
-      if (!caseId && row.kind === "INITIAL" && qualifiesForCase(row)) {
-        const { data: created, error: caseError } = await client
-          .from("cases")
-          .insert({
-            tenant_id: tenantId,
-            worker_id: workerId,
-            company_id: companyId,
-            status: "OPEN",
-            origin: row.origin,
-            opened_at: row.start_date,
-          })
-          .select("id")
-          .single();
-        if (caseError) throw new Error(caseError.message);
-        caseId = created!.id;
-        counts.casesCreated += 1;
-      }
+      touchedWorkers.add(workerId);
 
       const { error: stoppageError } = await client.from("work_stoppages").insert({
         tenant_id: tenantId,
         worker_id: workerId,
-        case_id: caseId,
+        case_id: null, // attached by reconcileWorkerCases once the whole episode is known
         start_date: row.start_date,
         end_date: row.end_date,
         origin: row.origin,
@@ -138,6 +112,10 @@ export async function commitRows(
         raw: stringifyRaw(row as unknown as Record<string, unknown>),
       });
     }
+  }
+
+  for (const workerId of touchedWorkers) {
+    counts.casesCreated += await reconcileWorkerCases(client, tenantId, workerId);
   }
 
   if (counts.errors.length) {
@@ -243,4 +221,43 @@ async function resolveWorker(
   counts.workersCreated += 1;
   cache.set(key, created.id);
   return created.id;
+}
+
+/**
+ * Groups every stoppage of the worker into episodes (same contiguity rule as the deadlines).
+ * A qualifying episode (continuous >= 30 days, or AT/MP) gets a case: an existing one linked to
+ * any of its stoppages or opened inside its dates, else a new one. Every case-less stoppage of the
+ * episode is attached to it. Idempotent. Returns the number of cases opened.
+ */
+export async function reconcileWorkerCases(client: Client, tenantId: string, workerId: string, today = todayParis()): Promise<number> {
+  const [{ data: stops }, { data: cases }, { data: worker }] = await Promise.all([
+    client.from("work_stoppages").select("id, case_id, start_date, end_date, origin, kind").eq("tenant_id", tenantId).eq("worker_id", workerId),
+    client.from("cases").select("id, opened_at").eq("tenant_id", tenantId).eq("worker_id", workerId),
+    client.from("workers").select("company_id").eq("id", workerId).single(),
+  ]);
+  let opened = 0;
+  for (const ep of episodes((stops ?? []) as any[])) {
+    const members = ep.stoppages as any[];
+    const origin = members.find((m) => m.origin === "AT" || m.origin === "MP")?.origin ?? members[0].origin;
+    if (!(origin === "AT" || origin === "MP" || episodeDuration(ep, today) >= 30)) continue;
+    const epEnd = ep.end ?? "9999-12-31";
+    let caseId: string | undefined =
+      members.find((m) => m.case_id)?.case_id ?? (cases ?? []).find((c: any) => c.opened_at >= ep.start && c.opened_at <= epEnd)?.id;
+    if (!caseId) {
+      const { data: created, error } = await client
+        .from("cases")
+        .insert({ tenant_id: tenantId, worker_id: workerId, company_id: worker!.company_id, status: "OPEN", origin, opened_at: ep.start })
+        .select("id")
+        .single();
+      if (error || !created) throw new Error(error?.message ?? "Ouverture du dossier impossible");
+      caseId = created.id as string;
+      opened += 1;
+    }
+    const loose = members.filter((m) => !m.case_id).map((m) => m.id);
+    if (loose.length) {
+      const { error } = await client.from("work_stoppages").update({ case_id: caseId }).in("id", loose);
+      if (error) throw new Error(error.message);
+    }
+  }
+  return opened;
 }

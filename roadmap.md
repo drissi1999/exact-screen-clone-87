@@ -4,7 +4,7 @@
 - [x] 2) No direct client writes on drafts/events/documents/audit; audited MEDICAL reads
 - [x] 3) Clinical doc types forced MEDICAL; downgrade médecin-only; generic titles for employer (+ coordination tasks server-only, templated text immutable)
 - [x] 4) Deadlines from case stoppages, contiguous episode only
-- [ ] 5) New deadline rules + 25 unit tests
+- [x] 5) New deadline rules + 25 unit tests
 - [ ] 6) Summary from approved events, citation check
 - [ ] 7) No clear links in simulated messages
 - [ ] 8) Upload file signature check

@@ -4,6 +4,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { computeDeadlines, maxConfidentiality, todayParis } from "./rules";
 import { canManageRole, refusalMessage } from "./role-policy";
 import { renderTemplate, type TemplateCode } from "./message-templates";
+import { loadCaseFacts } from "./case-facts.server";
 
 const CONF = z.enum(["MEDICAL", "PDP_SHARED", "ADMINISTRATIVE", "EMPLOYER_VISIBLE", "WORKER_VISIBLE"]);
 const ROLE = z.enum(["MEDECIN_TRAVAIL", "IDEST", "PDP_COORDINATOR", "SPSTI_ADMIN", "EMPLOYER_HR", "WORKER", "EXPERT"]);
@@ -161,6 +162,7 @@ export const getCaseDetail = createServerFn({ method: "GET" })
     ]);
     if (items.error) throw new Error("Accès refusé");
     const stoppages = st.data ?? [];
+    const facts = (await loadCaseFacts(await db(), [c.id])).get(c.id) ?? {};
     const docs = { data: items.data.documents }, ev = { data: items.data.events }, dr = { data: items.data.drafts };
 
     return {
@@ -174,7 +176,8 @@ export const getCaseDetail = createServerFn({ method: "GET" })
         company: (c.companies?.name ?? "") as string,
       },
       stoppages: stoppages as { start_date: string; end_date: string | null; origin: string; kind: string }[],
-      deadlines: computeDeadlines(stoppages, c.origin),
+      deadlines: computeDeadlines(stoppages, c.origin, undefined, facts),
+      facts: { employerKnownAt: (facts.employerKnownAt ?? null) as string | null, cpamInvestigation: !!facts.cpamInvestigation, avis: (facts.avis ?? null) as { type: string; date: string } | null },
       documents: (docs.data ?? []) as any[],
       events: (ev.data ?? []) as any[],
       drafts: (dr.data ?? []) as any[],
@@ -377,7 +380,8 @@ export const planCoordination = createServerFn({ method: "POST" })
     if (!have.has("ARRET_TRAVAIL")) addT("DOC_ARRET", today);
     if (!have.has("FICHE_POSTE")) addT("DOC_FICHE_POSTE", today);
     if (c.origin === "AT" && !have.has("DECLARATION_AT")) addT("DOC_DAT", today);
-    for (const d of computeDeadlines(st ?? [], c.origin)) {
+    const facts = (await loadCaseFacts(await db(), [data.caseId])).get(data.caseId);
+    for (const d of computeDeadlines(st ?? [], c.origin, undefined, facts)) {
       if (d.code === "PRE_REPRISE" && d.status === "EN_COURS") addT("RDV_PRE_REPRISE", d.due);
       if (d.code === "VISITE_REPRISE" && d.due) addT("RDV_REPRISE", d.due);
       if (d.status === "DEPASSEE" && !already.has(`ESC_${d.code}`))
@@ -447,5 +451,39 @@ export const releaseDocument = createServerFn({ method: "POST" })
       const m = error.message;
       throw new Error(m.includes("role") ? "Seuls le médecin du travail et l'IDEST peuvent publier" : m.includes("analysis") ? "Analyse non terminée : publication impossible" : "Ce document ne peut pas être publié");
     }
+    return { ok: true };
+  });
+
+/* ----------------------------- legal facts ----------------------------- */
+
+const ISO_DATE = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+
+/** Employer knowledge date and CPAM investigation flag (inputs of the deadline rules). */
+export const updateCaseLegalFacts = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ caseId: z.string().uuid(), employerKnownAt: ISO_DATE.nullable(), cpamInvestigation: z.boolean() }).parse(d))
+  .handler(async ({ data, context }) => {
+    await assertCanWrite(context.userId, data.caseId, "ADMINISTRATIVE");
+    const admin = await db();
+    const { data: c, error } = await admin.from("cases").update({ employer_known_at: data.employerKnownAt, cpam_investigation: data.cpamInvestigation }).eq("id", data.caseId).select("tenant_id").single();
+    if (error) throw new Error("Mise à jour impossible");
+    await audit(null, c.tenant_id, context.userId, "CASE_LEGAL_FACTS", "cases", data.caseId, data.caseId);
+    return { ok: true };
+  });
+
+/** Avis d'aptitude / inaptitude: entered by the médecin du travail only. */
+export const addAvis = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ caseId: z.string().uuid(), type: z.enum(["APTITUDE", "APTITUDE_AMENAGEMENTS", "INAPTITUDE"]), date: ISO_DATE }).parse(d))
+  .handler(async ({ data, context }) => {
+    const admin = await db();
+    const { data: c } = await admin.from("cases").select("tenant_id").eq("id", data.caseId).maybeSingle();
+    if (!c) throw new Error("Dossier introuvable");
+    const { data: ok } = await admin.rpc("can_write_case", { _actor: context.userId, _case: data.caseId, _level: "ADMINISTRATIVE" });
+    const { data: roles } = await admin.from("user_roles").select("role").eq("user_id", context.userId).eq("tenant_id", c.tenant_id).eq("role", "MEDECIN_TRAVAIL");
+    if (ok !== true || !(roles ?? []).length) throw new Error("Seul le médecin du travail peut saisir un avis");
+    const { data: row, error } = await admin.from("case_avis").insert({ tenant_id: c.tenant_id, case_id: data.caseId, avis_type: data.type, avis_date: data.date, created_by: context.userId }).select("id").single();
+    if (error) throw new Error("Enregistrement impossible");
+    await audit(null, c.tenant_id, context.userId, "AVIS_CREATE", "case_avis", row.id, data.caseId);
     return { ok: true };
   });
