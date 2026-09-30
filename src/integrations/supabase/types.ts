@@ -338,6 +338,7 @@ export type Database = {
           recipient: string
           sent_at: string | null
           status: string
+          template_code: string | null
           tenant_id: string
         }
         Insert: {
@@ -352,6 +353,7 @@ export type Database = {
           recipient: string
           sent_at?: string | null
           status?: string
+          template_code?: string | null
           tenant_id: string
         }
         Update: {
@@ -366,6 +368,7 @@ export type Database = {
           recipient?: string
           sent_at?: string | null
           status?: string
+          template_code?: string | null
           tenant_id?: string
         }
         Relationships: [
@@ -1020,6 +1023,14 @@ export type Database = {
           _level: Database["public"]["Enums"]["confidentiality"]
         }
         Returns: boolean
+      }
+      lower_document_confidentiality: {
+        Args: {
+          _actor: string
+          _doc: string
+          _level: Database["public"]["Enums"]["confidentiality"]
+        }
+        Returns: undefined
       }
       review_draft: {
         Args: {
