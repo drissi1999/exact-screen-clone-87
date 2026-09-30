@@ -1,7 +1,7 @@
 /** Return-to-work plan: dated tasks, portal isolation, follow-up alerts, date moves. Live database. */
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createClient } from "@supabase/supabase-js";
-import { createPlan, updatePlan, setActualReturn, completePlanTask, getPlan, portalPlanTasks } from "../../src/lib/return-plan.server";
+import { createPlan, updatePlan, setActualReturn, completePlanTask, getPlan, portalPlanTasks, acknowledgeAlert } from "../../src/lib/return-plan.server";
 import { buildEmployerPortal } from "../../src/lib/employer-portal.server";
 import { buildMyDay } from "../../src/lib/my-day.server";
 import { CLINICAL_WORDS, PLAN_TEMPLATES } from "../../src/lib/plan-templates";
@@ -93,5 +93,35 @@ run("Plan de retour (live database)", () => {
     expect(row?.reason).toContain("rechute");
     // The J+30 follow-up (due 01/10) is overdue on 02/10.
     expect(day.groups.PLAN_TACHES.some((r) => r.caseId === caseId)).toBe(true);
+  });
+
+  it("'Pris en charge' needs a note, is logged and removes the alert; a new bad outcome creates a new alert", async () => {
+    const { tasks } = await getPlan(admin, coord, caseId);
+    const j7 = tasks.find((t: any) => t.kind === "FOLLOWUP" && t.due_date === "2026-09-08");
+    await expect(acknowledgeAlert(admin, coord, { taskId: j7.id, note: " " })).rejects.toThrow("note");
+    await expect(acknowledgeAlert(admin, employer, { taskId: j7.id, note: "appel fait" })).rejects.toThrow();
+    await acknowledgeAlert(admin, coord, { taskId: j7.id, note: "Appel au salarié et à l'employeur" });
+    const row = (await admin.from("plan_tasks").select("alert_ack_at, alert_ack_by, alert_ack_note").eq("id", j7.id).single()).data;
+    expect(row).toMatchObject({ alert_ack_by: coord, alert_ack_note: "Appel au salarié et à l'employeur" });
+    expect(row.alert_ack_at).toBeTruthy();
+    const log = (await admin.from("audit_log").select("action, user_id").eq("entity_id", j7.id)).data;
+    expect(log).toEqual([{ action: "PLAN_ALERT_ACK", user_id: coord }]);
+    let day = await buildMyDay(admin, coord, "2026-10-02");
+    expect(day.groups.PLAN_ALERTES.some((r) => r.caseId === caseId)).toBe(false);
+
+    const j30 = tasks.find((t: any) => t.kind === "FOLLOWUP" && t.due_date === "2026-10-01");
+    await completePlanTask(admin, coord, { taskId: j30.id, outcome: "DIFFICULTES" });
+    day = await buildMyDay(admin, coord, "2026-10-02");
+    const alert = day.groups.PLAN_ALERTES.find((r) => r.caseId === caseId)!;
+    expect(alert.alertTaskIds).toEqual([j30.id]);
+    expect(alert.reason).toContain("difficultés");
+  });
+
+  it("follow-up outcomes are never visible to the employer or the worker", async () => {
+    const emp = JSON.stringify(await buildEmployerPortal(admin, tenant, companyId));
+    const wk = JSON.stringify(await portalPlanTasks(admin, [caseId], "WORKER"));
+    for (const s of [emp, wk]) {
+      for (const w of ["RECHUTE", "DIFFICULTES", "MAINTENU", "outcome", "suivi", "Appel au salarié"]) expect(s.toLowerCase()).not.toContain(w.toLowerCase());
+    }
   });
 });

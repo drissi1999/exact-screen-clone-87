@@ -43,7 +43,7 @@ export async function getPlan(db: any, userId: string, caseId: string) {
   const plan = await planOf(db, caseId);
   if (!plan) return { plan: null, tasks: [] as any[] };
   const { data: tasks } = await db.from("plan_tasks")
-    .select("id, code, kind, title, owner_role, partner_label, due_date, due_end, requires_document, document_id, status, outcome, done_at")
+    .select("id, code, kind, title, owner_role, partner_label, due_date, due_end, requires_document, document_id, status, outcome, done_at, alert_ack_at, alert_ack_note")
     .eq("plan_id", plan.id).order("due_date");
   return {
     plan: {

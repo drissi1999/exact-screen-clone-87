@@ -124,6 +124,7 @@ export function ReturnPlanTab({ caseId, documents, canEdit }: { caseId: string; 
                 {t.requires_document ? " · document requis" : ""}
                 {(t.owner_role === "EMPLOYER_HR" || t.owner_role === "WORKER") ? " · visible dans son espace" : ""}
               </p>
+              {t.alert_ack_at && <p className="text-xs text-muted-foreground">Alerte prise en charge le {fr(t.alert_ack_at)} : {t.alert_ack_note}</p>}
             </div>
             {t.status === "DONE" ? (
               <Badge variant={t.outcome && t.outcome !== "MAINTENU" ? "destructive" : "secondary"}>Terminé{t.outcome ? ` — ${OUTCOME_LABELS[t.outcome as Outcome]}` : ""}</Badge>
