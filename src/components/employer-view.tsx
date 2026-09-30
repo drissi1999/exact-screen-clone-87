@@ -64,7 +64,7 @@ export function EmployerView({ asCompanyId }: { asCompanyId?: string }) {
               {c.tasks.map((t: any) => (
                 <div key={t.id} className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border p-3">
                   <p>{t.message}</p>
-                  {t.status === "DONE" || readOnly ? <Badge variant="secondary">Traité</Badge> : <Button size="sm" variant="outline" onClick={() => act(() => fDone({ data: { taskId: t.id } }), "Demande marquée comme traitée")}>Marquer traité</Button>}
+                  {t.status === "DONE" || readOnly ? <Badge variant="secondary">{t.status === "DONE" ? "Traité" : "À traiter"}</Badge> : <Button size="sm" variant="outline" onClick={() => act(() => fDone({ data: { taskId: t.id } }), "Demande marquée comme traitée")}>Marquer traité</Button>}
                 </div>
               ))}
             </div>
@@ -77,7 +77,7 @@ export function EmployerView({ asCompanyId }: { asCompanyId?: string }) {
           ))}
           <div className="flex flex-wrap items-center gap-3 text-sm">
             {c.documents.map((d: any) => (
-              <Button key={d.id} size="sm" variant="ghost" onClick={() => act(async () => { const { url } = await fUrl({ data: { documentId: d.id } }); if (url) window.open(url, "_blank"); }, "Ouverture…")}>{d.filename}</Button>
+              readOnly ? <span key={d.id} className="text-muted-foreground">{d.filename}</span> : <Button key={d.id} size="sm" variant="ghost" onClick={() => act(async () => { const { url } = await fUrl({ data: { documentId: d.id } }); if (url) window.open(url, "_blank"); }, "Ouverture…")}>{d.filename}</Button>
             ))}
             {!readOnly && <label className="cursor-pointer text-primary hover:underline">
               Envoyer une fiche de poste
