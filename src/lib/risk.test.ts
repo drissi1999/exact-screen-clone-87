@@ -23,7 +23,7 @@ describe("risk score", () => {
   });
   it("maximum weights add up to 100 (no hidden clamping)", () => {
     const W = RISK_WEIGHTS;
-    expect(W.duration[0].points + W.episodes24m[0].points + W.originAtMp + W.age[0].points + W.physicalJob.points + W.avis.INAPTITUDE! + W.noContact.points + W.companySize[0].points).toBe(100);
+    expect(W.duration[0].points + W.episodes24m[0].points + W.originAtMp + W.age[0].points + W.physicalJob.points + W.avis["INAPTITUDE"]! + W.noContact.points + W.companySize[0].points).toBe(100);
   });
   it("episodes older than 24 months and gaps are counted correctly; recent contact scores nothing", () => {
     const st = [
