@@ -400,6 +400,8 @@ export type Database = {
           id: string
           mime_type: string | null
           page_count: number | null
+          released_at: string | null
+          released_by: string | null
           source: string
           storage_path: string
           tenant_id: string
@@ -416,6 +418,8 @@ export type Database = {
           id?: string
           mime_type?: string | null
           page_count?: number | null
+          released_at?: string | null
+          released_by?: string | null
           source?: string
           storage_path: string
           tenant_id: string
@@ -432,6 +436,8 @@ export type Database = {
           id?: string
           mime_type?: string | null
           page_count?: number | null
+          released_at?: string | null
+          released_by?: string | null
           source?: string
           storage_path?: string
           tenant_id?: string
@@ -1030,6 +1036,10 @@ export type Database = {
           _doc: string
           _level: Database["public"]["Enums"]["confidentiality"]
         }
+        Returns: undefined
+      }
+      release_document: {
+        Args: { _actor: string; _doc: string }
         Returns: undefined
       }
       review_draft: {
