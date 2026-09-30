@@ -5,6 +5,8 @@ import { computeDeadlines } from "./rules";
 import { loadCaseFacts } from "./case-facts.server";
 import { buildEmployerPortal } from "./employer-portal.server";
 import { genericDocTitle } from "./message-templates";
+import { assertAcceptedFile } from "./file-signature";
+import { issueWorkerLink, SECURE_LINK_PLACEHOLDER } from "./worker-links.server";
 import { PORTAL_DOC_COLUMNS, visibleInPortal } from "./portal-visibility";
 
 const WORKER_DEADLINES = new Set(["RDV_LIAISON", "PRE_REPRISE", "VISITE_REPRISE", "CONTESTATION_AVIS"]);
@@ -89,7 +91,7 @@ export const inviteEmployer = createServerFn({ method: "POST" })
       to_address: data.email,
       channel: "EMAIL",
       subject: "Invitation à l'espace employeur Reprise",
-      body: `Bonjour,\n\nVotre service de prévention et de santé au travail vous invite à rejoindre l'espace employeur de ${company.name}.\nCréez votre mot de passe ici (valable 7 jours) : ${link}\n\nCordialement.`,
+      body: `Bonjour,\n\nVotre service de prévention et de santé au travail vous invite à rejoindre l'espace employeur de ${company.name}.\nCréez votre mot de passe ici (valable 7 jours) : ${SECURE_LINK_PLACEHOLDER}\n\nCordialement.`,
       sent_by: context.userId,
     });
     await audit(sb, { tenant_id: company.tenant_id, user_id: context.userId, action: "EMPLOYER_INVITE", entity: "companies", entity_id: company.id });
@@ -101,29 +103,7 @@ export const createWorkerLink = createServerFn({ method: "POST" })
   .inputValidator((d) => z.object({ caseId: z.string().uuid(), origin: originSchema }).parse(d))
   .handler(async ({ data, context }) => {
     const sb = context.supabase as any;
-    const { data: c } = await sb.from("cases").select("id, tenant_id, workers(first_name, last_name, phone)").eq("id", data.caseId).maybeSingle();
-    if (!c) throw new Error("Dossier introuvable");
-    const token = randomToken();
-    const db = await admin();
-    await db.from("worker_links").insert({
-      tenant_id: c.tenant_id,
-      case_id: c.id,
-      token_hash: await sha256(token),
-      expires_at: new Date(Date.now() + 15 * 60_000).toISOString(),
-      created_by: context.userId,
-    });
-    const link = `${new URL(data.origin).origin}/salarie/${token}`;
-    await sb.from("simulated_messages").insert({
-      tenant_id: c.tenant_id,
-      case_id: c.id,
-      recipient_label: `Salarié — ${c.workers?.first_name ?? ""} ${c.workers?.last_name ?? ""}`,
-      to_address: c.workers?.phone ?? "téléphone manquant",
-      channel: "SMS",
-      subject: "Lien d'accès salarié",
-      body: `Bonjour ${c.workers?.first_name ?? ""}, votre service de santé au travail vous donne accès à votre espace : ${link} (lien à usage unique, valable 15 minutes).`,
-      sent_by: context.userId,
-    });
-    await audit(sb, { tenant_id: c.tenant_id, user_id: context.userId, action: "WORKER_LINK", entity: "cases", entity_id: c.id, case_id: c.id });
+    const { link } = await issueWorkerLink(await admin(), sb, data.caseId, context.userId, data.origin);
     return { link };
   });
 
@@ -261,12 +241,13 @@ export const employerUpload = createServerFn({ method: "POST" })
     if (!c) throw new Error("Accès refusé");
     const bytes = decodeBase64(data.base64);
     if (bytes.length > MAX_UPLOAD) throw new Error("Fichier trop volumineux (5 Mo max)");
+    const mime = assertAcceptedFile(bytes); // real signature, not the declared type
     const path = `${tenantId}/${c.id}/employeur-${crypto.randomUUID()}-${data.filename.replace(/[^\w.\-]/g, "_")}`;
-    const { error } = await db.storage.from("case-documents").upload(path, bytes, { contentType: data.mimeType });
+    const { error } = await db.storage.from("case-documents").upload(path, bytes, { contentType: mime });
     if (error) throw new Error("Envoi impossible");
     const { data: row } = await db
       .from("documents")
-      .insert({ tenant_id: tenantId, case_id: c.id, filename: data.filename, storage_path: path, mime_type: data.mimeType, confidentiality: "EMPLOYER_VISIBLE", doc_type: "FICHE_POSTE", uploaded_by: context.userId, source: "EMPLOYER" })
+      .insert({ tenant_id: tenantId, case_id: c.id, filename: data.filename, storage_path: path, mime_type: mime, confidentiality: "EMPLOYER_VISIBLE", doc_type: "FICHE_POSTE", uploaded_by: context.userId, source: "EMPLOYER" })
       .select("id")
       .single();
     await audit(db, { tenant_id: tenantId, user_id: context.userId, action: "CREATE", entity: "documents", entity_id: row?.id, case_id: c.id });
@@ -355,11 +336,12 @@ export const workerUpload = createServerFn({ method: "POST" })
     const { db, tenantId, caseId } = await workerSession(data.sessionToken);
     const bytes = decodeBase64(data.base64);
     if (bytes.length > MAX_UPLOAD) throw new Error("Fichier trop volumineux (5 Mo max)");
+    const mime = assertAcceptedFile(bytes); // real signature, not the declared type
     const path = `${tenantId}/${caseId}/salarie-${crypto.randomUUID()}-${data.filename.replace(/[^\w.\-]/g, "_")}`;
-    const { error } = await db.storage.from("case-documents").upload(path, bytes, { contentType: data.mimeType });
+    const { error } = await db.storage.from("case-documents").upload(path, bytes, { contentType: mime });
     if (error) throw new Error("Envoi impossible");
     // Worker uploads (arrêts, certificats) are medical by default.
-    await db.from("documents").insert({ tenant_id: tenantId, case_id: caseId, filename: data.filename, storage_path: path, mime_type: data.mimeType, confidentiality: "MEDICAL", source: "WORKER" });
+    await db.from("documents").insert({ tenant_id: tenantId, case_id: caseId, filename: data.filename, storage_path: path, mime_type: mime, confidentiality: "MEDICAL", source: "WORKER" });
     return { ok: true };
   });
 

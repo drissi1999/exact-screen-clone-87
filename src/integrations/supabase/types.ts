@@ -26,7 +26,9 @@ export type Database = {
           draft_text: string
           id: string
           kind: string
+          model: string | null
           required_role: string
+          source_fact_ids: string[]
           status: Database["public"]["Enums"]["review_status"]
           tenant_id: string
         }
@@ -41,7 +43,9 @@ export type Database = {
           draft_text: string
           id?: string
           kind: string
+          model?: string | null
           required_role?: string
+          source_fact_ids?: string[]
           status?: Database["public"]["Enums"]["review_status"]
           tenant_id: string
         }
@@ -56,7 +60,9 @@ export type Database = {
           draft_text?: string
           id?: string
           kind?: string
+          model?: string | null
           required_role?: string
+          source_fact_ids?: string[]
           status?: Database["public"]["Enums"]["review_status"]
           tenant_id?: string
         }

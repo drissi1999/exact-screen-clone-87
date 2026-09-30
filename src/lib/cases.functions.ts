@@ -4,7 +4,9 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { computeDeadlines, maxConfidentiality, todayParis } from "./rules";
 import { canManageRole, refusalMessage } from "./role-policy";
 import { renderTemplate, type TemplateCode } from "./message-templates";
-import { loadCaseFacts } from "./case-facts.server";
+import { loadCaseFacts, insertAvis } from "./case-facts.server";
+import { approvedFacts, factsPrompt, verifyCitations, SUMMARY_MODEL, type SummaryEvent } from "./summary";
+import { assertAcceptedFile } from "./file-signature";
 
 const CONF = z.enum(["MEDICAL", "PDP_SHARED", "ADMINISTRATIVE", "EMPLOYER_VISIBLE", "WORKER_VISIBLE"]);
 const ROLE = z.enum(["MEDECIN_TRAVAIL", "IDEST", "PDP_COORDINATOR", "SPSTI_ADMIN", "EMPLOYER_HR", "WORKER", "EXPERT"]);
@@ -44,7 +46,7 @@ async function callLLM(messages: unknown[], json = true): Promise<string> {
     method: "POST",
     headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
     body: JSON.stringify({
-      model: "google/gemini-2.5-flash",
+      model: SUMMARY_MODEL,
       messages,
       ...(json ? { response_format: { type: "json_object" } } : {}),
     }),
@@ -197,9 +199,20 @@ export const registerDocument = createServerFn({ method: "POST" })
     const tenantId = await tenantOf(sb, context.userId);
     if (!data.storagePath.startsWith(`${tenantId}/${data.caseId}/`)) throw new Error("Chemin invalide");
     await assertCanWrite(context.userId, data.caseId, data.confidentiality);
-    const { data: row, error } = await (await db())
+    const admin = await db();
+    // Real content check (magic bytes) on what was actually stored; refused files are deleted.
+    const { data: blob } = await admin.storage.from("case-documents").download(data.storagePath);
+    if (!blob) throw new Error("Fichier introuvable");
+    let mime: string;
+    try {
+      mime = assertAcceptedFile(new Uint8Array(await blob.slice(0, 16).arrayBuffer()));
+    } catch (e) {
+      await admin.storage.from("case-documents").remove([data.storagePath]);
+      throw e;
+    }
+    const { data: row, error } = await admin
       .from("documents")
-      .insert({ tenant_id: tenantId, case_id: data.caseId, filename: data.filename, storage_path: data.storagePath, mime_type: data.mimeType, confidentiality: data.confidentiality, uploaded_by: context.userId })
+      .insert({ tenant_id: tenantId, case_id: data.caseId, filename: data.filename, storage_path: data.storagePath, mime_type: mime, confidentiality: data.confidentiality, uploaded_by: context.userId })
       .select("id")
       .single();
     if (error) throw new Error(error.message);
@@ -290,25 +303,25 @@ export const generateSummary = createServerFn({ method: "POST" })
     const tenantId = await tenantOf(sb, context.userId);
     const { data: items, error: itemsErr } = await (await db()).rpc("staff_case_items", { _actor: context.userId, _case: data.caseId });
     if (itemsErr) throw new Error("Accès refusé");
-    const events = (items.events as any[]).filter((e) => e.status !== "REJECTED").map((e) => ({ ...e, documents: { filename: e.source_filename } }));
-    if (!events?.length) throw new Error("Aucun fait dans la chronologie. Analysez d'abord des documents.");
-    const conf = maxConfidentiality(events.map((e: any) => e.confidentiality));
-    const facts = events.map((e: any, i: number) => `${i + 1}. ${e.event_date ?? "date à vérifier"} — ${e.label} [source: ${e.documents?.filename ?? "?"}, p.${e.source_page ?? "?"}]${e.status === "DRAFT" ? " (non validé)" : ""}`).join("\n");
-    const text = await callLLM(
+    const facts = approvedFacts(items.events as SummaryEvent[]);
+    if (!facts.length) return { ok: false, reason: "Aucun fait validé : validez d'abord des faits de la chronologie pour générer une synthèse." };
+    const conf = maxConfidentiality(facts.map((f) => f.confidentiality as any));
+    await assertCanWrite(context.userId, data.caseId, conf);
+    const raw = await callLLM(
       [
-        { role: "system", content: "Tu rédiges des synthèses de dossiers de maintien en emploi pour un médecin du travail. Français, factuel, concis. Chaque fait cite sa source entre crochets [fichier, p.X]. Si une information manque ou est incertaine, écris « à vérifier ». Aucun conseil médical, aucun diagnostic nouveau." },
-        { role: "user", content: `Faits sourcés:\n${facts}\n\nRédige une synthèse structurée (Contexte, Chronologie clé, Points à vérifier).` },
+        { role: "system", content: "Tu rédiges des synthèses de dossiers de maintien en emploi pour un médecin du travail. Français, factuel, concis. Chaque phrase se termine par la citation exacte de sa source, recopiée telle quelle depuis la liste, par exemple [fichier.pdf, p.2]. N'utilise que les faits fournis. Aucun conseil médical, aucun diagnostic nouveau." },
+        { role: "user", content: `Faits validés:\n${factsPrompt(facts)}\n\nRédige une synthèse structurée avec les titres « Contexte » et « Chronologie clé ». N'écris pas de section « Points à vérifier ».` },
       ],
       false,
     );
-    await assertCanWrite(context.userId, data.caseId, conf);
+    const { text, flagged } = verifyCitations(raw, facts);
     const { data: row } = await (await db())
       .from("ai_drafts")
-      .insert({ tenant_id: tenantId, case_id: data.caseId, kind: "SYNTHESE", confidentiality: conf, draft_text: text, required_role: conf === "MEDICAL" ? "MEDECIN_TRAVAIL" : "PDP_COORDINATOR", created_by: context.userId })
+      .insert({ tenant_id: tenantId, case_id: data.caseId, kind: "SYNTHESE", confidentiality: conf, draft_text: text, required_role: conf === "MEDICAL" ? "MEDECIN_TRAVAIL" : "PDP_COORDINATOR", created_by: context.userId, source_fact_ids: facts.map((f) => f.id), model: SUMMARY_MODEL })
       .select("id")
       .single();
     await audit(sb, tenantId, context.userId, "AI_DRAFT", "ai_drafts", row?.id ?? null, data.caseId);
-    return { ok: true };
+    return { ok: true, reason: flagged.length ? `${flagged.length} phrase(s) sans source valide déplacée(s) dans « Points à vérifier ».` : "" };
   });
 
 /** Employer-facing notice: template-only, never receives medical fields. */
@@ -476,14 +489,6 @@ export const addAvis = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ caseId: z.string().uuid(), type: z.enum(["APTITUDE", "APTITUDE_AMENAGEMENTS", "INAPTITUDE"]), date: ISO_DATE }).parse(d))
   .handler(async ({ data, context }) => {
-    const admin = await db();
-    const { data: c } = await admin.from("cases").select("tenant_id").eq("id", data.caseId).maybeSingle();
-    if (!c) throw new Error("Dossier introuvable");
-    const { data: ok } = await admin.rpc("can_write_case", { _actor: context.userId, _case: data.caseId, _level: "ADMINISTRATIVE" });
-    const { data: roles } = await admin.from("user_roles").select("role").eq("user_id", context.userId).eq("tenant_id", c.tenant_id).eq("role", "MEDECIN_TRAVAIL");
-    if (ok !== true || !(roles ?? []).length) throw new Error("Seul le médecin du travail peut saisir un avis");
-    const { data: row, error } = await admin.from("case_avis").insert({ tenant_id: c.tenant_id, case_id: data.caseId, avis_type: data.type, avis_date: data.date, created_by: context.userId }).select("id").single();
-    if (error) throw new Error("Enregistrement impossible");
-    await audit(null, c.tenant_id, context.userId, "AVIS_CREATE", "case_avis", row.id, data.caseId);
+    await insertAvis(await db(), context.userId, data.caseId, data.type, data.date);
     return { ok: true };
   });

@@ -1,3 +1,4 @@
+import { UPLOAD_ACCEPT } from "@/lib/file-signature";
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -104,7 +105,7 @@ function WorkerPortal() {
             <p className="text-sm text-muted-foreground">Arrêt de travail, certificat… Seule l'équipe médicale y a accès.</p>
             <label className="block">
               <span className="flex h-12 w-full cursor-pointer items-center justify-center rounded-md bg-primary text-sm font-medium text-primary-foreground">{busy ? "Envoi…" : "Prendre une photo ou choisir un fichier"}</span>
-              <input type="file" accept="image/*,.pdf" capture="environment" className="hidden" disabled={busy} onChange={async (e) => {
+              <input type="file" accept={UPLOAD_ACCEPT} capture="environment" className="hidden" disabled={busy} onChange={async (e) => {
                 const f = e.target.files?.[0];
                 e.target.value = "";
                 if (f) await act(async () => fUpload({ data: { sessionToken: session, filename: f.name, mimeType: f.type || "application/octet-stream", base64: await fileToBase64(f) } }), "Document envoyé");
