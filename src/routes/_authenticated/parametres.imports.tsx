@@ -270,10 +270,11 @@ function ImportsPage() {
       {step === 3 && (
         <section className="panel space-y-5 p-6">
           <h2 className="text-lg font-semibold">Contrôle des lignes</h2>
-          <p className="text-sm">
-            <Badge className="mr-2">{validCount} ligne(s) valide(s)</Badge>
+          <div className="flex flex-wrap items-center gap-2 text-sm">
+            <Badge>{validCount} ligne(s) valide(s)</Badge>
             <Badge variant="destructive">{invalid.length} ligne(s) en erreur</Badge>
-          </p>
+          </div>
+
 
           {invalid.length > 0 && (
             <div className="overflow-x-auto">
