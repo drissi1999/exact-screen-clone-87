@@ -3,7 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { exchangeWorkerLink, getWorkerDocUrl, getWorkerPortal, workerCompleteTask, workerUpload } from "@/lib/portal.functions";
+import { exchangeWorkerLink, getWorkerDocUrl, getWorkerPortal, workerCompletePlanTask, workerCompleteTask, workerUpload } from "@/lib/portal.functions";
 import { fileToBase64, frDate } from "@/lib/file-to-base64";
 import { Button } from "@/components/ui/button";
 
@@ -32,6 +32,7 @@ function WorkerPortal() {
   const fPortal = useServerFn(getWorkerPortal);
   const fUpload = useServerFn(workerUpload);
   const fDone = useServerFn(workerCompleteTask);
+  const fPlanDone = useServerFn(workerCompletePlanTask);
   const fUrl = useServerFn(getWorkerDocUrl);
   const [session, setSession] = useState<string | null>(null);
   const [data, setData] = useState<Portal | null>(null);
