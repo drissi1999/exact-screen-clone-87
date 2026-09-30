@@ -19,6 +19,7 @@ const NAV = [
   { to: "/messages", label: "Messages simulés" },
   { to: "/parametres/imports", label: "Imports" },
   { to: "/parametres/equipe", label: "Équipe · Accès" },
+  { to: "/apercu", label: "Voir en tant que" },
 ] as const;
 
 function AuthenticatedLayout() {
