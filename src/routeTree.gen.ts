@@ -10,33 +10,44 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApiPublicIngestStoppagesRouteImport } from './routes/api/public/ingest/stoppages'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicIngestStoppagesRoute =
+  ApiPublicIngestStoppagesRouteImport.update({
+    id: '/api/public/ingest/stoppages',
+    path: '/api/public/ingest/stoppages',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/api/public/ingest/stoppages': typeof ApiPublicIngestStoppagesRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/api/public/ingest/stoppages': typeof ApiPublicIngestStoppagesRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/api/public/ingest/stoppages': typeof ApiPublicIngestStoppagesRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths: '/' | '/api/public/ingest/stoppages'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to: '/' | '/api/public/ingest/stoppages'
+  id: '__root__' | '/' | '/api/public/ingest/stoppages'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ApiPublicIngestStoppagesRoute: typeof ApiPublicIngestStoppagesRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +59,19 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/ingest/stoppages': {
+      id: '/api/public/ingest/stoppages'
+      path: '/api/public/ingest/stoppages'
+      fullPath: '/api/public/ingest/stoppages'
+      preLoaderRoute: typeof ApiPublicIngestStoppagesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ApiPublicIngestStoppagesRoute: ApiPublicIngestStoppagesRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
