@@ -405,7 +405,7 @@ export const updateTask = createServerFn({ method: "POST" })
     // RLS read proves the task is in the caller's tenant; the write itself goes through the admin client.
     const { data: own } = await sb.from("coordination_tasks").select("id, case_id").eq("id", data.taskId).maybeSingle();
     if (!own) throw new Error("Tâche introuvable");
-    await assertCanWrite(context.userId, own.case_id, "PDP_SHARED");
+    await assertCanWrite(context.userId, own.case_id, "ADMINISTRATIVE");
     const { data: t } = await (await db()).from("coordination_tasks").update(patch).eq("id", own.id).select("id, case_id, recipient, channel, message, purpose, tenant_id").single();
     if (t && data.action === "SEND") {
       const { data: c } = await sb.from("cases").select("workers(first_name, last_name, email, phone), companies(name)").eq("id", t.case_id).maybeSingle();
@@ -422,5 +422,17 @@ export const updateTask = createServerFn({ method: "POST" })
       });
     }
     await audit(sb, await tenantOf(sb, context.userId), context.userId, `TASK_${data.action}`, "coordination_tasks", t?.id ?? null, t?.case_id ?? null);
+    return { ok: true };
+  });
+
+/* --------------------------- confidentiality --------------------------- */
+
+/** Lowering a level: MEDECIN_TRAVAIL only, checked and logged in public.lower_document_confidentiality. */
+export const lowerDocumentConfidentiality = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ documentId: z.string().uuid(), level: CONF }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { error } = await (await db()).rpc("lower_document_confidentiality", { _actor: context.userId, _doc: data.documentId, _level: data.level });
+    if (error) throw new Error(error.message.includes("role") ? "Seul le médecin du travail peut abaisser la confidentialité" : "Changement refusé");
     return { ok: true };
   });
