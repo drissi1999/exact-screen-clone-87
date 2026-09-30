@@ -22,3 +22,4 @@
 - Employer and worker portals read through server functions using the admin client with an explicit company/case filter and a column whitelist. Why: column-level medical secrecy cannot be expressed per role in RLS.
 - Worker access = single-use 15-min link exchanged for a 30-min server session (`worker_links`/`worker_sessions`, service-role only). Why: workers have no account.
 - Invited employers are moved into the inviting tenant in `acceptInvitation` (the signup trigger cannot see app_metadata at insert time).
+- Admin "Voir en tant que" (/apercu): employer view reuses `getEmployerPortal` with `asCompanyId` (admin-only, read-only, audited); worker view issues a real worker link without a simulated SMS. Why: admin sees exactly what each audience sees, through the same code path.

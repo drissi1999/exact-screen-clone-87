@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as AuthenticatedApercuRouteImport } from './routes/_authenticated/apercu'
 import { Route as AuthenticatedDossiersRouteImport } from './routes/_authenticated/dossiers'
 import { Route as AuthenticatedEmployeurRouteImport } from './routes/_authenticated/employeur'
 import { Route as AuthenticatedEntreprisesRouteImport } from './routes/_authenticated/entreprises'
@@ -37,6 +38,11 @@ const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedApercuRoute = AuthenticatedApercuRouteImport.update({
+  id: '/apercu',
+  path: '/apercu',
+  getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedDossiersRoute = AuthenticatedDossiersRouteImport.update({
   id: '/dossiers',
@@ -103,6 +109,7 @@ const ApiPublicIngestStoppagesRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/apercu': typeof AuthenticatedApercuRoute
   '/dossiers': typeof AuthenticatedDossiersRoute
   '/employeur': typeof AuthenticatedEmployeurRoute
   '/entreprises': typeof AuthenticatedEntreprisesRoute
@@ -118,6 +125,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/apercu': typeof AuthenticatedApercuRoute
   '/dossiers': typeof AuthenticatedDossiersRoute
   '/employeur': typeof AuthenticatedEmployeurRoute
   '/entreprises': typeof AuthenticatedEntreprisesRoute
@@ -135,6 +143,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
+  '/_authenticated/apercu': typeof AuthenticatedApercuRoute
   '/_authenticated/dossiers': typeof AuthenticatedDossiersRoute
   '/_authenticated/employeur': typeof AuthenticatedEmployeurRoute
   '/_authenticated/entreprises': typeof AuthenticatedEntreprisesRoute
@@ -152,6 +161,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/auth'
+    | '/apercu'
     | '/dossiers'
     | '/employeur'
     | '/entreprises'
@@ -167,6 +177,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/auth'
+    | '/apercu'
     | '/dossiers'
     | '/employeur'
     | '/entreprises'
@@ -183,6 +194,7 @@ export interface FileRouteTypes {
     | '/'
     | '/_authenticated'
     | '/auth'
+    | '/_authenticated/apercu'
     | '/_authenticated/dossiers'
     | '/_authenticated/employeur'
     | '/_authenticated/entreprises'
@@ -227,6 +239,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/auth'
       preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/apercu': {
+      id: '/_authenticated/apercu'
+      path: '/apercu'
+      fullPath: '/apercu'
+      preLoaderRoute: typeof AuthenticatedApercuRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/dossiers': {
       id: '/_authenticated/dossiers'
@@ -309,6 +328,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthenticatedRouteRouteChildren {
+  AuthenticatedApercuRoute: typeof AuthenticatedApercuRoute
   AuthenticatedDossiersRoute: typeof AuthenticatedDossiersRoute
   AuthenticatedEmployeurRoute: typeof AuthenticatedEmployeurRoute
   AuthenticatedEntreprisesRoute: typeof AuthenticatedEntreprisesRoute
@@ -320,6 +340,7 @@ interface AuthenticatedRouteRouteChildren {
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedApercuRoute: AuthenticatedApercuRoute,
   AuthenticatedDossiersRoute: AuthenticatedDossiersRoute,
   AuthenticatedEmployeurRoute: AuthenticatedEmployeurRoute,
   AuthenticatedEntreprisesRoute: AuthenticatedEntreprisesRoute,
