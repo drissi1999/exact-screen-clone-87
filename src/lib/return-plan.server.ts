@@ -43,7 +43,7 @@ export async function getPlan(db: any, userId: string, caseId: string) {
   const plan = await planOf(db, caseId);
   if (!plan) return { plan: null, tasks: [] as any[] };
   const { data: tasks } = await db.from("plan_tasks")
-    .select("id, code, kind, title, owner_role, partner_label, due_date, due_end, requires_document, document_id, status, outcome, done_at, alert_ack_at, alert_ack_note")
+    .select("id, code, kind, title, owner_role, partner_label, due_date, due_end, requires_document, document_id, status, outcome, done_at, alert_ack_at, alert_ack_note, on_behalf_note")
     .eq("plan_id", plan.id).order("due_date");
   return {
     plan: {
@@ -131,21 +131,34 @@ export async function setActualReturn(db: any, userId: string, i: { caseId: stri
   return { ok: true };
 }
 
-/** Staff completion. Follow-ups need an outcome; tasks that require a document need one from the case. */
-export async function completePlanTask(db: any, userId: string, i: { taskId: string; documentId?: string | null | undefined; outcome?: Outcome | null | undefined }) {
+export const ON_BEHALF_LABEL = { EMPLOYER_HR: "Fait pour le compte de l'employeur", WORKER: "Fait pour le compte du salarié" } as const;
+
+/** Staff completion. Follow-ups need an outcome; tasks that require a document need one from the case.
+ *  Employer/worker tasks completed by staff need a mandatory note, carry the "pour le compte de" mention and are audited. */
+export async function completePlanTask(db: any, userId: string, i: { taskId: string; documentId?: string | null | undefined; outcome?: Outcome | null | undefined; note?: string | null | undefined }) {
   const { data: t } = await db.from("plan_tasks").select("*").eq("id", i.taskId).maybeSingle();
   if (!t) throw new Error("Tâche introuvable");
   await assertPlanEditor(db, userId, t.case_id);
   if (t.status === "DONE") throw new Error("Tâche déjà terminée");
   if (t.kind === "MILESTONE" && FOLLOWUP_CODES.includes(t.code)) throw new Error("Ce point de suivi sera planifié à la reprise effective");
   if (t.kind === "FOLLOWUP" && !i.outcome) throw new Error("Indiquez le résultat du suivi");
+  const onBehalf = t.owner_role === "EMPLOYER_HR" || t.owner_role === "WORKER";
+  const note = (i.note ?? "").trim();
+  if (onBehalf && note.length < 3) throw new Error("Une note est obligatoire pour agir pour le compte de l'employeur ou du salarié");
   if (t.requires_document) {
     if (!i.documentId) throw new Error("Cette tâche nécessite un document");
     const { data: d } = await db.from("documents").select("id").eq("id", i.documentId).eq("case_id", t.case_id).maybeSingle();
     if (!d) throw new Error("Document introuvable dans ce dossier");
   }
-  await db.from("plan_tasks").update({ status: "DONE", done_at: new Date().toISOString(), done_by: userId, outcome: t.kind === "FOLLOWUP" ? i.outcome : null, document_id: i.documentId ?? null }).eq("id", t.id);
-  await fact(db, userId, t.case_id, `Tâche du plan terminée : ${t.title}${t.kind === "FOLLOWUP" ? ` — ${OUTCOME_LABELS[i.outcome!]}` : ""}`);
+  const mention = onBehalf ? ON_BEHALF_LABEL[t.owner_role as "EMPLOYER_HR" | "WORKER"] : null;
+  await db.from("plan_tasks").update({
+    status: "DONE", done_at: new Date().toISOString(), done_by: userId, outcome: t.kind === "FOLLOWUP" ? i.outcome : null,
+    document_id: i.documentId ?? null, on_behalf_note: onBehalf ? `${mention} — ${note.slice(0, 1000)}` : null,
+  }).eq("id", t.id);
+  if (onBehalf) {
+    await db.from("audit_log").insert({ tenant_id: t.tenant_id, user_id: userId, action: "PLAN_TASK_ON_BEHALF", entity: "plan_tasks", entity_id: t.id, case_id: t.case_id });
+  }
+  await fact(db, userId, t.case_id, `Tâche du plan terminée : ${t.title}${mention ? ` (${mention.toLowerCase()})` : ""}${t.kind === "FOLLOWUP" ? ` — ${OUTCOME_LABELS[i.outcome!]}` : ""}`);
   return { ok: true };
 }
 

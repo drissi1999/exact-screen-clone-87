@@ -33,7 +33,7 @@ export const setReturnDate = createServerFn({ method: "POST" })
 
 export const completeReturnPlanTask = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({ taskId: z.string().uuid(), documentId: z.string().uuid().nullable().optional(), outcome: z.enum(["MAINTENU", "DIFFICULTES", "RECHUTE"]).nullable().optional() }).parse(d))
+  .inputValidator((d) => z.object({ taskId: z.string().uuid(), documentId: z.string().uuid().nullable().optional(), outcome: z.enum(["MAINTENU", "DIFFICULTES", "RECHUTE"]).nullable().optional(), note: z.string().max(1000).nullable().optional() }).parse(d))
   .handler(async ({ data, context }) => completePlanTask(await admin(), context.userId, data));
 
 export const acknowledgePlanAlert = createServerFn({ method: "POST" })
