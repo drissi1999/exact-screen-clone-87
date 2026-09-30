@@ -13,7 +13,12 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedDossiersRouteImport } from './routes/_authenticated/dossiers'
+import { Route as AuthenticatedEmployeurRouteImport } from './routes/_authenticated/employeur'
+import { Route as AuthenticatedEntreprisesRouteImport } from './routes/_authenticated/entreprises'
+import { Route as AuthenticatedMessagesRouteImport } from './routes/_authenticated/messages'
 import { Route as AuthenticatedTableauDeBordRouteImport } from './routes/_authenticated/tableau-de-bord'
+import { Route as InvitationTokenRouteImport } from './routes/invitation.$token'
+import { Route as SalarieTokenRouteImport } from './routes/salarie.$token'
 import { Route as AuthenticatedDossiersCaseIdRouteImport } from './routes/_authenticated/dossiers_.$caseId'
 import { Route as AuthenticatedParametresEquipeRouteImport } from './routes/_authenticated/parametres.equipe'
 import { Route as AuthenticatedParametresImportsRouteImport } from './routes/_authenticated/parametres.imports'
@@ -38,12 +43,38 @@ const AuthenticatedDossiersRoute = AuthenticatedDossiersRouteImport.update({
   path: '/dossiers',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedEmployeurRoute = AuthenticatedEmployeurRouteImport.update({
+  id: '/employeur',
+  path: '/employeur',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedEntreprisesRoute =
+  AuthenticatedEntreprisesRouteImport.update({
+    id: '/entreprises',
+    path: '/entreprises',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedMessagesRoute = AuthenticatedMessagesRouteImport.update({
+  id: '/messages',
+  path: '/messages',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedTableauDeBordRoute =
   AuthenticatedTableauDeBordRouteImport.update({
     id: '/tableau-de-bord',
     path: '/tableau-de-bord',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const InvitationTokenRoute = InvitationTokenRouteImport.update({
+  id: '/invitation/$token',
+  path: '/invitation/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SalarieTokenRoute = SalarieTokenRouteImport.update({
+  id: '/salarie/$token',
+  path: '/salarie/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedDossiersCaseIdRoute =
   AuthenticatedDossiersCaseIdRouteImport.update({
     id: '/dossiers_/$caseId',
@@ -73,7 +104,12 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/dossiers': typeof AuthenticatedDossiersRoute
+  '/employeur': typeof AuthenticatedEmployeurRoute
+  '/entreprises': typeof AuthenticatedEntreprisesRoute
+  '/messages': typeof AuthenticatedMessagesRoute
   '/tableau-de-bord': typeof AuthenticatedTableauDeBordRoute
+  '/invitation/$token': typeof InvitationTokenRoute
+  '/salarie/$token': typeof SalarieTokenRoute
   '/dossiers/$caseId': typeof AuthenticatedDossiersCaseIdRoute
   '/parametres/equipe': typeof AuthenticatedParametresEquipeRoute
   '/parametres/imports': typeof AuthenticatedParametresImportsRoute
@@ -83,7 +119,12 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/dossiers': typeof AuthenticatedDossiersRoute
+  '/employeur': typeof AuthenticatedEmployeurRoute
+  '/entreprises': typeof AuthenticatedEntreprisesRoute
+  '/messages': typeof AuthenticatedMessagesRoute
   '/tableau-de-bord': typeof AuthenticatedTableauDeBordRoute
+  '/invitation/$token': typeof InvitationTokenRoute
+  '/salarie/$token': typeof SalarieTokenRoute
   '/dossiers/$caseId': typeof AuthenticatedDossiersCaseIdRoute
   '/parametres/equipe': typeof AuthenticatedParametresEquipeRoute
   '/parametres/imports': typeof AuthenticatedParametresImportsRoute
@@ -95,7 +136,12 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/_authenticated/dossiers': typeof AuthenticatedDossiersRoute
+  '/_authenticated/employeur': typeof AuthenticatedEmployeurRoute
+  '/_authenticated/entreprises': typeof AuthenticatedEntreprisesRoute
+  '/_authenticated/messages': typeof AuthenticatedMessagesRoute
   '/_authenticated/tableau-de-bord': typeof AuthenticatedTableauDeBordRoute
+  '/invitation/$token': typeof InvitationTokenRoute
+  '/salarie/$token': typeof SalarieTokenRoute
   '/_authenticated/dossiers_/$caseId': typeof AuthenticatedDossiersCaseIdRoute
   '/_authenticated/parametres/equipe': typeof AuthenticatedParametresEquipeRoute
   '/_authenticated/parametres/imports': typeof AuthenticatedParametresImportsRoute
@@ -107,7 +153,12 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/dossiers'
+    | '/employeur'
+    | '/entreprises'
+    | '/messages'
     | '/tableau-de-bord'
+    | '/invitation/$token'
+    | '/salarie/$token'
     | '/dossiers/$caseId'
     | '/parametres/equipe'
     | '/parametres/imports'
@@ -117,7 +168,12 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/dossiers'
+    | '/employeur'
+    | '/entreprises'
+    | '/messages'
     | '/tableau-de-bord'
+    | '/invitation/$token'
+    | '/salarie/$token'
     | '/dossiers/$caseId'
     | '/parametres/equipe'
     | '/parametres/imports'
@@ -128,7 +184,12 @@ export interface FileRouteTypes {
     | '/_authenticated'
     | '/auth'
     | '/_authenticated/dossiers'
+    | '/_authenticated/employeur'
+    | '/_authenticated/entreprises'
+    | '/_authenticated/messages'
     | '/_authenticated/tableau-de-bord'
+    | '/invitation/$token'
+    | '/salarie/$token'
     | '/_authenticated/dossiers_/$caseId'
     | '/_authenticated/parametres/equipe'
     | '/_authenticated/parametres/imports'
@@ -139,6 +200,8 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
+  InvitationTokenRoute: typeof InvitationTokenRoute
+  SalarieTokenRoute: typeof SalarieTokenRoute
   ApiPublicIngestStoppagesRoute: typeof ApiPublicIngestStoppagesRoute
 }
 
@@ -172,12 +235,47 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDossiersRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/employeur': {
+      id: '/_authenticated/employeur'
+      path: '/employeur'
+      fullPath: '/employeur'
+      preLoaderRoute: typeof AuthenticatedEmployeurRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/entreprises': {
+      id: '/_authenticated/entreprises'
+      path: '/entreprises'
+      fullPath: '/entreprises'
+      preLoaderRoute: typeof AuthenticatedEntreprisesRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/messages': {
+      id: '/_authenticated/messages'
+      path: '/messages'
+      fullPath: '/messages'
+      preLoaderRoute: typeof AuthenticatedMessagesRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/tableau-de-bord': {
       id: '/_authenticated/tableau-de-bord'
       path: '/tableau-de-bord'
       fullPath: '/tableau-de-bord'
       preLoaderRoute: typeof AuthenticatedTableauDeBordRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/invitation/$token': {
+      id: '/invitation/$token'
+      path: '/invitation/$token'
+      fullPath: '/invitation/$token'
+      preLoaderRoute: typeof InvitationTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/salarie/$token': {
+      id: '/salarie/$token'
+      path: '/salarie/$token'
+      fullPath: '/salarie/$token'
+      preLoaderRoute: typeof SalarieTokenRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/_authenticated/dossiers_/$caseId': {
       id: '/_authenticated/dossiers_/$caseId'
@@ -212,6 +310,9 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedDossiersRoute: typeof AuthenticatedDossiersRoute
+  AuthenticatedEmployeurRoute: typeof AuthenticatedEmployeurRoute
+  AuthenticatedEntreprisesRoute: typeof AuthenticatedEntreprisesRoute
+  AuthenticatedMessagesRoute: typeof AuthenticatedMessagesRoute
   AuthenticatedTableauDeBordRoute: typeof AuthenticatedTableauDeBordRoute
   AuthenticatedDossiersCaseIdRoute: typeof AuthenticatedDossiersCaseIdRoute
   AuthenticatedParametresEquipeRoute: typeof AuthenticatedParametresEquipeRoute
@@ -220,6 +321,9 @@ interface AuthenticatedRouteRouteChildren {
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDossiersRoute: AuthenticatedDossiersRoute,
+  AuthenticatedEmployeurRoute: AuthenticatedEmployeurRoute,
+  AuthenticatedEntreprisesRoute: AuthenticatedEntreprisesRoute,
+  AuthenticatedMessagesRoute: AuthenticatedMessagesRoute,
   AuthenticatedTableauDeBordRoute: AuthenticatedTableauDeBordRoute,
   AuthenticatedDossiersCaseIdRoute: AuthenticatedDossiersCaseIdRoute,
   AuthenticatedParametresEquipeRoute: AuthenticatedParametresEquipeRoute,
@@ -233,6 +337,8 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
+  InvitationTokenRoute: InvitationTokenRoute,
+  SalarieTokenRoute: SalarieTokenRoute,
   ApiPublicIngestStoppagesRoute: ApiPublicIngestStoppagesRoute,
 }
 export const routeTree = rootRouteImport

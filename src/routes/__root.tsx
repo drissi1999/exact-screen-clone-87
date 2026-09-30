@@ -132,6 +132,9 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
+      <div role="note" className="sticky top-0 z-50 bg-warning px-4 py-1.5 text-center text-xs font-semibold text-warning-foreground">
+        Prototype – données fictives uniquement, ne pas importer de données réelles
+      </div>
       <Outlet />
       <Toaster richColors position="top-right" />
     </QueryClientProvider>

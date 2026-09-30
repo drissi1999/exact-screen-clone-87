@@ -11,9 +11,9 @@ async function tenantOf(sb: any, userId: string): Promise<string> {
   if (!data) throw new Error("Profil introuvable");
   return data.tenant_id;
 }
-async function hasRole(sb: any, role: string): Promise<boolean> {
-  const { data } = await sb.rpc("has_role_text", { _role: role });
-  return Boolean(data);
+async function hasRole(sb: any, role: string, userId: string): Promise<boolean> {
+  const { data } = await sb.from("user_roles").select("role").eq("user_id", userId).eq("role", role).limit(1);
+  return (data ?? []).length > 0;
 }
 /** Append-only audit trail. Stores ids only, never health data. */
 async function audit(sb: any, tenantId: string, userId: string, action: string, entity: string, entityId: string | null, caseId: string | null) {
@@ -67,7 +67,7 @@ export const setRole = createServerFn({ method: "POST" })
   .inputValidator((d) => z.object({ userId: z.string().uuid(), role: ROLE, enabled: z.boolean() }).parse(d))
   .handler(async ({ data, context }) => {
     const sb = context.supabase as any;
-    if (!(await hasRole(sb, "SPSTI_ADMIN"))) throw new Error("Réservé à l'administrateur SPSTI");
+    if (!(await hasRole(sb, "SPSTI_ADMIN", context.userId))) throw new Error("Réservé à l'administrateur SPSTI");
     const tenantId = await tenantOf(sb, context.userId);
     if (data.enabled) {
       const { error } = await sb.from("user_roles").insert({ user_id: data.userId, tenant_id: tenantId, role: data.role });
@@ -232,7 +232,7 @@ export const reviewEvent = createServerFn({ method: "POST" })
     const sb = context.supabase as any;
     const { data: ev } = await sb.from("case_events").select("id, case_id, confidentiality").eq("id", data.eventId).maybeSingle();
     if (!ev) throw new Error("Événement introuvable");
-    if (ev.confidentiality === "MEDICAL" && !(await hasRole(sb, "MEDECIN_TRAVAIL")) && !(await hasRole(sb, "IDEST")))
+    if (ev.confidentiality === "MEDICAL" && !(await hasRole(sb, "MEDECIN_TRAVAIL", context.userId)) && !(await hasRole(sb, "IDEST", context.userId)))
       throw new Error("Validation réservée au médecin du travail ou à l'IDEST");
     await sb.from("case_events").update({ status: data.status, reviewed_by: context.userId, reviewed_at: new Date().toISOString() }).eq("id", ev.id);
     await audit(sb, await tenantOf(sb, context.userId), context.userId, `EVENT_${data.status}`, "case_events", ev.id, ev.case_id);
@@ -312,7 +312,7 @@ export const reviewDraft = createServerFn({ method: "POST" })
     const sb = context.supabase as any;
     const { data: dr } = await sb.from("ai_drafts").select("id, case_id, required_role, draft_text").eq("id", data.draftId).maybeSingle();
     if (!dr) throw new Error("Brouillon introuvable");
-    if (!(await hasRole(sb, dr.required_role))) throw new Error("Vous n'avez pas le rôle requis pour valider ce document");
+    if (!(await hasRole(sb, dr.required_role, context.userId))) throw new Error("Vous n'avez pas le rôle requis pour valider ce document");
     await sb
       .from("ai_drafts")
       .update({ status: data.status, approved_text: data.status === "APPROVED" ? (data.text ?? dr.draft_text) : null, approved_by: context.userId, approved_at: new Date().toISOString() })
@@ -374,7 +374,21 @@ export const updateTask = createServerFn({ method: "POST" })
         : data.action === "ESCALATE"
           ? { status: "ESCALATED", escalated_reason: data.reason ?? "Escalade manuelle" }
           : { status: "DONE" };
-    const { data: t } = await sb.from("coordination_tasks").update(patch).eq("id", data.taskId).select("id, case_id").single();
+    const { data: t } = await sb.from("coordination_tasks").update(patch).eq("id", data.taskId).select("id, case_id, recipient, channel, message, purpose, tenant_id").single();
+    if (t && data.action === "SEND") {
+      const { data: c } = await sb.from("cases").select("workers(first_name, last_name, email, phone), companies(name)").eq("id", t.case_id).maybeSingle();
+      const toWorker = t.recipient === "WORKER";
+      await sb.from("simulated_messages").insert({
+        tenant_id: t.tenant_id,
+        case_id: t.case_id,
+        recipient_label: toWorker ? `Salarié — ${c?.workers?.first_name ?? ""} ${c?.workers?.last_name ?? ""}` : t.recipient === "EMPLOYER_HR" ? `RH — ${c?.companies?.name ?? ""}` : "Cellule PDP",
+        to_address: toWorker ? (t.channel === "SMS" ? c?.workers?.phone : c?.workers?.email) ?? "coordonnées manquantes" : null,
+        channel: t.channel,
+        subject: t.purpose,
+        body: t.message,
+        sent_by: context.userId,
+      });
+    }
     await audit(sb, await tenantOf(sb, context.userId), context.userId, `TASK_${data.action}`, "coordination_tasks", t?.id ?? null, t?.case_id ?? null);
     return { ok: true };
   });
