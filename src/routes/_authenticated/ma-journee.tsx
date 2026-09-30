@@ -24,14 +24,16 @@ export const Route = createFileRoute("/_authenticated/ma-journee")({
 });
 
 const GROUPS = [
+  ["PLAN_ALERTES", "Alertes suivi de reprise"],
   ["EN_RETARD", "En retard"],
   ["AUJOURDHUI", "Aujourd'hui"],
   ["SEMAINE", "Cette semaine"],
   ["NOUVEAUX", "Nouveaux dossiers"],
   ["DOCUMENTS", "Documents à valider"],
   ["REPONSES", "Réponses reçues"],
+  ["PLAN_TACHES", "Tâches du plan de retour"],
 ] as const;
-const ACTION_LABEL = { RDV_LIAISON: "Planifier le RDV de liaison", VALIDER: "Valider la chronologie", RELANCER: "Relancer", PUBLIER: "Publier" } as const;
+const ACTION_LABEL = { RDV_LIAISON: "Planifier le RDV de liaison", VALIDER: "Valider la chronologie", RELANCER: "Relancer", PUBLIER: "Publier", PLAN: "Ouvrir le plan de retour" } as const;
 const ORIGINS: Record<string, string> = { MALADIE: "Maladie", AT: "Accident du travail", MP: "Maladie professionnelle" };
 const fr = (d: string) => new Date(`${d}T12:00:00Z`).toLocaleDateString("fr-FR");
 
@@ -78,7 +80,7 @@ function MyDay() {
   useEffect(() => { document.querySelector(`[data-row="${cursor}"]`)?.scrollIntoView({ block: "nearest" }); }, [cursor]);
 
   async function act(caseId: string, action: keyof typeof ACTION_LABEL) {
-    if (action === "VALIDER" || action === "PUBLIER") return open(caseId);
+    if (action === "VALIDER" || action === "PUBLIER" || action === "PLAN") return open(caseId);
     setBusy(caseId);
     try {
       const r = await plan({ data: { caseId } });
@@ -121,7 +123,7 @@ function MyDay() {
         {filtered.map((g) => (
           <a key={g.key} href={`#${g.key}`} className="panel p-3">
             <p className="text-xs text-muted-foreground">{g.label}</p>
-            <p className={cn("text-2xl font-semibold", g.key === "EN_RETARD" && g.rows.length > 0 && "text-destructive")}>{g.rows.length}</p>
+            <p className={cn("text-2xl font-semibold", (g.key === "EN_RETARD" || g.key === "PLAN_ALERTES") && g.rows.length > 0 && "text-destructive")}>{g.rows.length}</p>
           </a>
         ))}
       </div>
