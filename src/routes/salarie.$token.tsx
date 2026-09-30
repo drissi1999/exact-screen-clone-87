@@ -107,20 +107,20 @@ function WorkerPortal() {
                 if (f) await act(async () => fUpload({ data: { sessionToken: session, filename: f.name, mimeType: f.type || "application/octet-stream", base64: await fileToBase64(f) } }), "Document envoyé");
               }} />
             </label>
-            {data.sent.length > 0 && <ul className="text-xs text-muted-foreground">{data.sent.map((d) => <li key={d.id}>✓ {d.filename} — {frDate(d.createdAt)}</li>)}</ul>}
+            {data.sent.length > 0 && <ul className="text-xs text-muted-foreground">{data.sent.map((d: any) => <li key={d.id}>✓ {d.filename} — {frDate(d.createdAt)}</li>)}</ul>}
           </div>
 
           <div className="panel space-y-2 p-5 text-sm">
             <h2 className="font-semibold">Mon arrêt</h2>
-            {data.periods.map((p, i) => <p key={i} className="text-muted-foreground">Du {frDate(p.start)} au {p.end ? frDate(p.end) : "date non connue"}</p>)}
-            {data.deadlines.map((d) => <p key={d.code}>• {d.label}{d.due ? ` — avant le ${frDate(d.due)}` : ""}</p>)}
+            {data.periods.map((p: any, i: number) => <p key={i} className="text-muted-foreground">Du {frDate(p.start)} au {p.end ? frDate(p.end) : "date non connue"}</p>)}
+            {data.deadlines.map((d: any) => <p key={d.code}>• {d.label}{d.due ? ` — avant le ${frDate(d.due)}` : ""}</p>)}
           </div>
 
           {(data.messages.length > 0 || data.documents.length > 0) && (
             <div className="panel space-y-3 p-5 text-sm">
               <h2 className="font-semibold">Messages et documents</h2>
-              {data.messages.map((m) => <pre key={m.id} className="whitespace-pre-wrap font-sans">{m.text}</pre>)}
-              {data.documents.map((d) => (
+              {data.messages.map((m: any) => <pre key={m.id} className="whitespace-pre-wrap font-sans">{m.text}</pre>)}
+              {data.documents.map((d: any) => (
                 <Button key={d.id} variant="ghost" size="sm" onClick={() => act(async () => { const { url } = await fUrl({ data: { sessionToken: session, documentId: d.id } }); if (url) window.open(url, "_blank"); }, "Ouverture…")}>{d.filename}</Button>
               ))}
             </div>
