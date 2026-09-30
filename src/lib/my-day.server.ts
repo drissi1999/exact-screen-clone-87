@@ -2,13 +2,14 @@
 import { computeDeadlines, todayParis, type Deadline, type Stoppage } from "./rules";
 import { computeRisk, type RiskResult } from "./risk";
 import { loadCaseFacts } from "./case-facts.server";
+import { myDayPlanItems } from "./return-plan.server";
 
 export const STAFF_ROLES = ["MEDECIN_TRAVAIL", "IDEST", "PDP_COORDINATOR", "SPSTI_ADMIN", "EXPERT"];
 /** Tables the risk score may read. Never documents, case_events or ai_drafts (medical content). */
 export const RISK_TABLES = ["cases", "work_stoppages", "workers", "companies", "case_avis", "coordination_tasks"] as const;
 
-export type MyDayGroup = "EN_RETARD" | "AUJOURDHUI" | "SEMAINE" | "NOUVEAUX" | "DOCUMENTS" | "REPONSES";
-export type MyDayAction = "RDV_LIAISON" | "VALIDER" | "RELANCER" | "PUBLIER";
+export type MyDayGroup = "EN_RETARD" | "AUJOURDHUI" | "SEMAINE" | "NOUVEAUX" | "DOCUMENTS" | "REPONSES" | "PLAN_TACHES" | "PLAN_ALERTES";
+export type MyDayAction = "RDV_LIAISON" | "VALIDER" | "RELANCER" | "PUBLIER" | "PLAN";
 export type MyDayRow = {
   caseId: string; worker: string; company: string; companyId: string; origin: string | null;
   reason: string; nextDeadline: { label: string; due: string } | null;
@@ -73,16 +74,17 @@ export async function buildMyDay(db: any, userId: string, today = todayParis()) 
     .eq("tenant_id", tenantId).eq("status", "OPEN");
   const ids = (cases ?? []).map((c: any) => c.id as string);
   const weekAgo = addDays(today, -7);
-  const [scores, facts, st, docs, replies] = await Promise.all([
+  const [scores, facts, st, docs, replies, plan] = await Promise.all([
     scoreCases(db, tenantId, ids, today),
     loadCaseFacts(db, ids),
     ids.length ? db.from("work_stoppages").select("case_id, start_date, end_date, origin, kind").in("case_id", ids) : { data: [] },
     db.rpc("my_day_documents", { _actor: userId }),
     // Replies: files sent by the employer or the worker in the last 7 days (metadata only).
     ids.length ? db.from("documents").select("case_id, source, created_at").eq("tenant_id", tenantId).in("source", ["EMPLOYER", "WORKER"]).gte("created_at", weekAgo).in("case_id", ids) : { data: [] },
+    myDayPlanItems(db, tenantId, ids, today),
   ]);
   const docMap = new Map<string, { draft_facts: number; publishable: number }>((docs.data ?? []).map((d: any) => [d.case_id, d]));
-  const groups: Record<MyDayGroup, MyDayRow[]> = { EN_RETARD: [], AUJOURDHUI: [], SEMAINE: [], NOUVEAUX: [], DOCUMENTS: [], REPONSES: [] };
+  const groups: Record<MyDayGroup, MyDayRow[]> = { EN_RETARD: [], AUJOURDHUI: [], SEMAINE: [], NOUVEAUX: [], DOCUMENTS: [], REPONSES: [], PLAN_TACHES: [], PLAN_ALERTES: [] };
   const week = addDays(today, 7);
 
   for (const c of cases ?? []) {
@@ -109,8 +111,12 @@ export async function buildMyDay(db: any, userId: string, today = todayParis()) 
     else if (dm?.publishable) groups.DOCUMENTS.push({ ...base, reason: `${dm.publishable} document(s) prêt(s) à publier`, action: "PUBLIER" });
     const rep = (replies.data ?? []).filter((r: any) => r.case_id === c.id);
     if (rep.length) groups.REPONSES.push({ ...base, reason: `${rep.length} document(s) reçu(s) ${rep.some((r: any) => r.source === "EMPLOYER") ? "de l'employeur" : "du salarié"}`, action: "VALIDER" });
+    const pd = plan.due.filter((t: any) => t.case_id === c.id);
+    if (pd.length) groups.PLAN_TACHES.push({ ...base, reason: `Plan de retour : ${pd.map((t: any) => `${t.title} (${t.due_date < today ? "en retard" : "aujourd'hui"})`).join(", ")}`, action: "PLAN" });
+    const pa = plan.alerts.filter((t: any) => t.case_id === c.id);
+    if (pa.length) groups.PLAN_ALERTES.push({ ...base, reason: `Alerte suivi : ${pa.map((t: any) => `${t.title} — ${t.outcome === "RECHUTE" ? "rechute" : "difficultés"}`).join(", ")}`, action: "PLAN" });
   }
   for (const g of Object.values(groups)) g.sort((a, b) => b.score - a.score);
-  const todo = new Set([...groups.EN_RETARD, ...groups.AUJOURDHUI, ...groups.NOUVEAUX, ...groups.DOCUMENTS, ...groups.REPONSES].map((r) => r.caseId));
+  const todo = new Set([...groups.EN_RETARD, ...groups.AUJOURDHUI, ...groups.NOUVEAUX, ...groups.DOCUMENTS, ...groups.REPONSES, ...groups.PLAN_TACHES, ...groups.PLAN_ALERTES].map((r) => r.caseId));
   return { today, toHandleToday: todo.size, groups };
 }
