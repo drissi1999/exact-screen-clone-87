@@ -2,11 +2,12 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { computeDeadlines } from "./rules";
+import { loadCaseFacts } from "./case-facts.server";
 import { buildEmployerPortal } from "./employer-portal.server";
 import { genericDocTitle } from "./message-templates";
 import { PORTAL_DOC_COLUMNS, visibleInPortal } from "./portal-visibility";
 
-const WORKER_DEADLINES = new Set(["RDV_LIAISON", "PRE_REPRISE", "VISITE_REPRISE"]);
+const WORKER_DEADLINES = new Set(["RDV_LIAISON", "PRE_REPRISE", "VISITE_REPRISE", "CONTESTATION_AVIS"]);
 const MAX_UPLOAD = 5 * 1024 * 1024;
 
 async function sha256(s: string) {
@@ -338,9 +339,9 @@ export const getWorkerPortal = createServerFn({ method: "POST" })
       firstName: (c.workers?.first_name ?? "") as string,
       company: (c.companies?.name ?? "") as string,
       periods: (st.data ?? []).map((s: any) => ({ start: s.start_date as string, end: (s.end_date ?? null) as string | null })),
-      deadlines: computeDeadlines(st.data ?? [], c.origin)
+      deadlines: computeDeadlines(st.data ?? [], c.origin, undefined, (await loadCaseFacts(db, [caseId])).get(caseId))
         .filter((d) => WORKER_DEADLINES.has(d.code))
-        .map((d) => ({ code: d.code, label: d.label, from: d.from, due: d.due, status: d.status })),
+        .map((d) => ({ code: d.code, label: d.label, from: d.from, due: d.due, status: d.status, toValidate: true as const })),
       documents: (docs.data ?? []).filter((d: any) => visibleInPortal(d, "WORKER")).map((d: any) => ({ id: d.id as string, title: genericDocTitle(d.doc_type) })),
       messages: (drafts.data ?? []).map((d: any) => ({ id: d.id as string, text: d.approved_text as string })),
       tasks: (tasks.data ?? []).map((t: any) => ({ id: t.id as string, message: t.message as string, status: t.status as string, due: (t.due_at ?? null) as string | null })),
