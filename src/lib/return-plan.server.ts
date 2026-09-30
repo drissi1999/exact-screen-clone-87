@@ -55,7 +55,7 @@ export async function getPlan(db: any, userId: string, caseId: string) {
   };
 }
 
-export async function createPlan(db: any, userId: string, i: { caseId: string; targetDate: string; scenario: Scenario; notes?: string }) {
+export async function createPlan(db: any, userId: string, i: { caseId: string; targetDate: string; scenario: Scenario; notes?: string | undefined }) {
   const tenantId = await assertPlanEditor(db, userId, i.caseId);
   if (await planOf(db, i.caseId)) throw new Error("Ce dossier a déjà un plan de retour");
   const partners: Partner[] = PLAN_TEMPLATES[i.scenario].partners.map((label) => ({ label, contact: "" }));
@@ -78,7 +78,7 @@ async function insertMilestones(db: any, tenantId: string, planId: string, caseI
   }
 }
 
-export async function updatePlan(db: any, userId: string, i: { caseId: string; targetDate?: string; scenario?: Scenario; status?: PlanStatus; notes?: string; partners?: Partner[] }) {
+export async function updatePlan(db: any, userId: string, i: { caseId: string; targetDate?: string | undefined; scenario?: Scenario | undefined; status?: PlanStatus | undefined; notes?: string | undefined; partners?: Partner[] | undefined }) {
   const tenantId = await assertPlanEditor(db, userId, i.caseId);
   const plan = await planOf(db, i.caseId);
   if (!plan) throw new Error("Aucun plan pour ce dossier");
@@ -132,7 +132,7 @@ export async function setActualReturn(db: any, userId: string, i: { caseId: stri
 }
 
 /** Staff completion. Follow-ups need an outcome; tasks that require a document need one from the case. */
-export async function completePlanTask(db: any, userId: string, i: { taskId: string; documentId?: string | null; outcome?: Outcome | null }) {
+export async function completePlanTask(db: any, userId: string, i: { taskId: string; documentId?: string | null | undefined; outcome?: Outcome | null | undefined }) {
   const { data: t } = await db.from("plan_tasks").select("*").eq("id", i.taskId).maybeSingle();
   if (!t) throw new Error("Tâche introuvable");
   await assertPlanEditor(db, userId, t.case_id);
@@ -149,7 +149,8 @@ export async function completePlanTask(db: any, userId: string, i: { taskId: str
 }
 
 /** Portal tasks: title, date and status only. */
-export async function portalPlanTasks(db: any, caseIds: string[], owner: "EMPLOYER_HR" | "WORKER") {
+export type PortalPlanTask = { id: string; caseId: string; title: string; due: string; status: string; requiresDocument: boolean };
+export async function portalPlanTasks(db: any, caseIds: string[], owner: "EMPLOYER_HR" | "WORKER"): Promise<PortalPlanTask[]> {
   if (!caseIds.length) return [] as { id: string; caseId: string; title: string; due: string; status: string; requiresDocument: boolean }[];
   const { data } = await db.from("plan_tasks").select("id, case_id, title, due_date, status, requires_document").in("case_id", caseIds).eq("owner_role", owner).order("due_date");
   return (data ?? []).map((t: any) => ({ id: t.id as string, caseId: t.case_id as string, title: t.title as string, due: t.due_date as string, status: t.status as string, requiresDocument: !!t.requires_document }));
