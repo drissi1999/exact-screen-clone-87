@@ -1013,7 +1013,35 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      can_write_case: {
+        Args: {
+          _case: string
+          _level: Database["public"]["Enums"]["confidentiality"]
+        }
+        Returns: boolean
+      }
+      review_draft: {
+        Args: {
+          _actor: string
+          _draft: string
+          _status: Database["public"]["Enums"]["review_status"]
+          _text: string
+        }
+        Returns: undefined
+      }
+      review_event: {
+        Args: {
+          _actor: string
+          _event: string
+          _status: Database["public"]["Enums"]["review_status"]
+        }
+        Returns: undefined
+      }
+      staff_case_items: { Args: { _case: string }; Returns: Json }
+      staff_document: {
+        Args: { _doc: string; _purpose: string }
+        Returns: Json
+      }
     }
     Enums: {
       app_role:
