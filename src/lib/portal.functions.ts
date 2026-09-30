@@ -134,6 +134,28 @@ export const listSimulatedMessages = createServerFn({ method: "GET" })
     return (data ?? []) as any[];
   });
 
+/** Admin-only: opens the real worker portal for a case, without sending a simulated SMS. */
+export const adminWorkerPreviewLink = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ caseId: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const sb = context.supabase as any;
+    if (!(await myRoles(sb, context.userId)).includes("SPSTI_ADMIN")) throw new Error("Réservé à l'administrateur SPSTI");
+    const { data: c } = await sb.from("cases").select("id, tenant_id").eq("id", data.caseId).maybeSingle();
+    if (!c) throw new Error("Dossier introuvable");
+    const token = randomToken();
+    const db = await admin();
+    await db.from("worker_links").insert({
+      tenant_id: c.tenant_id,
+      case_id: c.id,
+      token_hash: await sha256(token),
+      expires_at: new Date(Date.now() + 15 * 60_000).toISOString(),
+      created_by: context.userId,
+    });
+    await audit(sb, { tenant_id: c.tenant_id, user_id: context.userId, action: "PREVIEW_WORKER", entity: "cases", entity_id: c.id, case_id: c.id });
+    return { path: `/salarie/${token}` };
+  });
+
 /* --------------------------- employer invitation --------------------------- */
 
 export const getInvitation = createServerFn({ method: "POST" })
@@ -191,11 +213,23 @@ async function employerContext(sb: any, userId: string) {
   return { tenantId: p.tenant_id, companyId: p.company_id };
 }
 
-export const getEmployerPortal = createServerFn({ method: "GET" })
+/** Admin-only "view as": resolves a company of the admin's own tenant (RLS-scoped lookup). */
+async function adminPreviewContext(sb: any, userId: string, companyId: string) {
+  if (!(await myRoles(sb, userId)).includes("SPSTI_ADMIN")) throw new Error("Réservé à l'administrateur SPSTI");
+  const { data: c } = await sb.from("companies").select("id, tenant_id").eq("id", companyId).maybeSingle();
+  if (!c) throw new Error("Entreprise introuvable");
+  return { tenantId: c.tenant_id as string, companyId: c.id as string };
+}
+
+export const getEmployerPortal = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
-    const { tenantId, companyId } = await employerContext(context.supabase, context.userId);
+  .inputValidator((d) => z.object({ asCompanyId: z.string().uuid().optional() }).parse(d ?? {}))
+  .handler(async ({ data: input, context }) => {
+    const { tenantId, companyId } = input.asCompanyId
+      ? await adminPreviewContext(context.supabase, context.userId, input.asCompanyId)
+      : await employerContext(context.supabase, context.userId);
     const db = await admin();
+    if (input.asCompanyId) await audit(db, { tenant_id: tenantId, user_id: context.userId, action: "PREVIEW_EMPLOYER", entity: "companies", entity_id: companyId });
     const { data: company } = await db.from("companies").select("name").eq("id", companyId).single();
     // Explicit column whitelist: never select origin, diagnosis or medical fields.
     const { data: cases } = await db
