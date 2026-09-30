@@ -219,9 +219,15 @@ export interface NormalizedRow {
   kind: "INITIAL" | "PROLONGATION";
 }
 
+export type RawRow = Record<string, string>;
+
+export function stringifyRaw(raw: Record<string, unknown>): RawRow {
+  return Object.fromEntries(Object.entries(raw).map(([k, v]) => [k, v === null || v === undefined ? "" : String(v)]));
+}
+
 export interface RowResult {
   rowNumber: number;
-  raw: Record<string, unknown>;
+  raw: RawRow;
   normalized: NormalizedRow | null;
   errors: string[];
 }
@@ -297,7 +303,7 @@ export function validateRows(rows: Record<string, unknown>[], mapping: Mapping):
       }
     }
 
-    return { rowNumber, raw, normalized, errors };
+    return { rowNumber, raw: stringifyRaw(raw), normalized, errors };
   });
 }
 

@@ -239,7 +239,7 @@ export const getStats = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const countOf = async (table: string, filter?: (q: any) => any) => {
-      let query = context.supabase.from(table).select("id", { count: "exact", head: true });
+      let query = (context.supabase as any).from(table).select("id", { count: "exact", head: true });
       if (filter) query = filter(query);
       const { count } = await query;
       return count ?? 0;

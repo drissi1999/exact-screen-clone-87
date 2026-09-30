@@ -1,6 +1,7 @@
 // Server-only: turns validated rows into Companies, Workers, WorkStoppages and Cases.
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
+  stringifyRaw,
   qualifiesForCase,
   rowFingerprint,
   sha256,
@@ -17,7 +18,7 @@ export interface CommitCounts {
   workersCreated: number;
   companiesCreated: number;
   casesCreated: number;
-  errors: { rowNumber: number; errors: string[]; raw: Record<string, unknown> }[];
+  errors: { rowNumber: number; errors: string[]; raw: Record<string, string> }[];
 }
 
 export interface CommitOptions {
@@ -25,7 +26,7 @@ export interface CommitOptions {
   source?: "FILE" | "API";
   importProfileId?: string | null;
   fileHash?: string | null;
-  invalidRows?: { rowNumber: number; errors: string[]; raw: Record<string, unknown> }[];
+  invalidRows?: { rowNumber: number; errors: string[]; raw: Record<string, string> }[];
 }
 
 export async function commitRows(
@@ -134,7 +135,7 @@ export async function commitRows(
       counts.errors.push({
         rowNumber: row.rowNumber,
         errors: [error instanceof Error ? error.message : "Erreur inconnue"],
-        raw: row as unknown as Record<string, unknown>,
+        raw: stringifyRaw(row as unknown as Record<string, unknown>),
       });
     }
   }
