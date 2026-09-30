@@ -23,7 +23,10 @@ import {
   addAvis,
 } from "@/lib/cases.functions";
 import { createWorkerLink } from "@/lib/portal.functions";
-import { CONF_LABELS, LEGAL_CHECK_LABEL, ROLE_LABELS } from "@/lib/rules";
+import { LEGAL_CHECK_LABEL, ROLE_LABELS, episodes, episodeDuration } from "@/lib/rules";
+import { getReturnPlan } from "@/lib/return-plan.functions";
+import { ConfLabel, CONF_TEXT, DeadlineBadge, EmptyState, PriorityIndicator, ReviewBadge, StatusBadge } from "@/components/kit";
+import { FileText, ListChecks, CalendarClock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -58,8 +61,19 @@ const fr = (s?: string | null) => (s ? new Date(`${s.slice(0, 10)}T12:00:00Z`).t
 const AVIS_LABELS: Record<string, string> = { APTITUDE: "Avis d'aptitude", APTITUDE_AMENAGEMENTS: "Aptitude avec aménagements", INAPTITUDE: "Avis d'inaptitude" };
 
 function ConfBadge({ level }: { level: string }) {
-  return <Badge variant={level === "MEDICAL" ? "destructive" : "outline"}>{CONF_LABELS[level] ?? level}</Badge>;
+  return <ConfLabel level={level} />;
 }
+const DOC_TYPES: Record<string, string> = {
+  CERTIFICAT_MEDICAL: "Certificat médical", COMPTE_RENDU: "Compte rendu", ARRET_TRAVAIL: "Arrêt de travail", FICHE_POSTE: "Fiche de poste",
+  COURRIER: "Courrier", DECLARATION_AT: "Déclaration d'accident", AVIS: "Avis", AUTRE: "Autre document",
+};
+const ANALYSIS: Record<string, string> = { PENDING: "en attente d'analyse", PROCESSING: "analyse en cours", DONE: "analysé", FAILED: "échec de l'analyse", ERROR: "échec de l'analyse" };
+const CHANNEL: Record<string, string> = { SMS: "SMS", EMAIL: "E-mail", PORTAL: "Espace en ligne" };
+const AUDIT: Record<string, string> = {
+  READ: "Consultation d'une pièce médicale", AVIS_CREATE: "Saisie d'un avis", PLAN_ALERT_ACK: "Alerte de suivi prise en charge",
+  PLAN_TASK_ON_BEHALF: "Tâche faite pour le compte de l'employeur ou du salarié", WORKER_LINK: "Lien salarié envoyé",
+  DOCUMENT_RELEASE: "Document publié", CONFIDENTIALITY_LOWER: "Niveau de confidentialité abaissé",
+};
 
 function CasePage() {
   const { caseId } = Route.useParams();
