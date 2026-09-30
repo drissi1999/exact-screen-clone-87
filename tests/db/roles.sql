@@ -1,13 +1,15 @@
 -- Role-grant policy tests. Runs in a transaction and rolls back; no data is kept.
 \set ON_ERROR_STOP on
 BEGIN;
-INSERT INTO auth.users (id, email, instance_id, aud, role) VALUES
- ('00000000-0000-0000-0000-00000000000a','admin.a@test.fictif','00000000-0000-0000-0000-000000000000','authenticated','authenticated'),
- ('00000000-0000-0000-0000-00000000000b','member.a@test.fictif','00000000-0000-0000-0000-000000000000','authenticated','authenticated'),
- ('00000000-0000-0000-0000-00000000000c','admin.b@test.fictif','00000000-0000-0000-0000-000000000000','authenticated','authenticated');
--- move B into A's tenant as a plain member
-DELETE FROM public.user_roles WHERE user_id='00000000-0000-0000-0000-00000000000b';
-UPDATE public.profiles SET tenant_id=(SELECT tenant_id FROM public.profiles WHERE user_id='00000000-0000-0000-0000-00000000000a') WHERE user_id='00000000-0000-0000-0000-00000000000b';
+-- fictitious users (no auth account needed: RLS only reads the JWT sub)
+INSERT INTO public.tenants(id,name) VALUES ('10000000-0000-0000-0000-00000000000a','Test A'),('10000000-0000-0000-0000-00000000000b','Test B');
+INSERT INTO public.profiles(user_id,tenant_id,full_name) VALUES
+ ('00000000-0000-0000-0000-00000000000a','10000000-0000-0000-0000-00000000000a','Admin A'),
+ ('00000000-0000-0000-0000-00000000000b','10000000-0000-0000-0000-00000000000a','Membre A'),
+ ('00000000-0000-0000-0000-00000000000c','10000000-0000-0000-0000-00000000000b','Admin B');
+INSERT INTO public.user_roles(user_id,tenant_id,role) VALUES
+ ('00000000-0000-0000-0000-00000000000a','10000000-0000-0000-0000-00000000000a','SPSTI_ADMIN'),
+ ('00000000-0000-0000-0000-00000000000c','10000000-0000-0000-0000-00000000000b','SPSTI_ADMIN');
 CREATE TEMP TABLE t AS SELECT (SELECT tenant_id FROM public.profiles WHERE user_id='00000000-0000-0000-0000-00000000000a') a,
                                 (SELECT tenant_id FROM public.profiles WHERE user_id='00000000-0000-0000-0000-00000000000c') b;
 GRANT SELECT ON t TO authenticated;
