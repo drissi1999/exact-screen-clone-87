@@ -36,7 +36,6 @@ const GROUPS = [
 ] as const;
 const ACTION_LABEL = { RDV_LIAISON: "Planifier le RDV de liaison", VALIDER: "Valider la chronologie", RELANCER: "Relancer", PUBLIER: "Publier", PLAN: "Ouvrir le plan de retour" } as const;
 const ORIGINS: Record<string, string> = { MALADIE: "Maladie", AT: "Accident du travail", MP: "Maladie professionnelle" };
-const fr = (d: string) => new Date(`${d}T12:00:00Z`).toLocaleDateString("fr-FR");
 
 function MyDay() {
   const fetchDay = useServerFn(getMyDay);
