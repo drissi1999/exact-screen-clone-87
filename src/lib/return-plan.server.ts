@@ -1,5 +1,6 @@
 /** Return-to-work plan. `db` is the service-role client; every function checks tenant and role itself. */
 import { todayParis } from "./rules";
+import { addDays } from "./plan-templates";
 import {
   FOLLOWUPS, PLAN_EDITORS, PLAN_TEMPLATES, SCENARIO_LABELS, STATUS_LABELS, OUTCOME_LABELS, milestonesFor,
   type Outcome, type PlanStatus, type Scenario,
@@ -26,7 +27,7 @@ export async function assertPlanEditor(db: any, userId: string, caseId: string):
   return tenantId;
 }
 
-async function fact(db: any, userId: string, caseId: string, label: string) {
+async function fact(db: any, userId: string | null, caseId: string, label: string) {
   const { error } = await db.rpc("add_plan_event", { _actor: userId, _case: caseId, _label: label });
   if (error) throw new Error("Chronologie : écriture refusée");
 }
@@ -97,7 +98,6 @@ export async function updatePlan(db: any, userId: string, i: { caseId: string; t
       // Move every open milestone with the target date, keeping its offset.
       const { data: open } = await db.from("plan_tasks").select("id, offset_days, offset_end_days").eq("plan_id", plan.id).eq("kind", "MILESTONE").eq("status", "TODO");
       for (const t of open ?? []) {
-        const { addDays } = await import("./plan-templates");
         await db.from("plan_tasks").update({
           due_date: addDays(i.targetDate, t.offset_days),
           due_end: t.offset_end_days != null ? addDays(i.targetDate, t.offset_end_days) : null,
@@ -167,8 +167,7 @@ export async function completePortalPlanTask(db: any, i: { taskId: string; owner
     documentId = d[0].id;
   }
   await db.from("plan_tasks").update({ status: "DONE", done_at: new Date().toISOString(), done_by: i.actorId ?? null, document_id: documentId }).eq("id", t.id);
-  const { data: c } = await db.from("cases").select("tenant_id").eq("id", t.case_id).single();
-  await db.from("case_events").insert({ tenant_id: c.tenant_id, case_id: t.case_id, event_date: todayParis(), label: `Tâche du plan terminée (${i.owner === "WORKER" ? "salarié" : "employeur"}) : ${t.title}`, confidentiality: "PDP_SHARED" });
+  await fact(db, i.actorId ?? null, t.case_id, `Tâche du plan terminée (${i.owner === "WORKER" ? "salarié" : "employeur"}) : ${t.title}`);
   return { ok: true };
 }
 
