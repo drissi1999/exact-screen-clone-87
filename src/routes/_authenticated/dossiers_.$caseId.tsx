@@ -28,6 +28,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { ReturnPlanTab } from "@/components/return-plan-tab";
 
 export const Route = createFileRoute("/_authenticated/dossiers_/$caseId")({
   head: () => ({
@@ -143,8 +144,13 @@ function CasePage() {
           <TabsTrigger value="chronologie">Chronologie ({data.events.length})</TabsTrigger>
           <TabsTrigger value="documents">Documents ({data.documents.length})</TabsTrigger>
           <TabsTrigger value="brouillons">Brouillons ({data.drafts.length})</TabsTrigger>
+          <TabsTrigger value="plan">Plan de retour</TabsTrigger>
           <TabsTrigger value="coordination">Coordination ({data.tasks.length})</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="plan">
+          <ReturnPlanTab caseId={caseId} documents={data.documents} canEdit={!!me?.roles.some((r) => ["PDP_COORDINATOR", "IDEST", "MEDECIN_TRAVAIL"].includes(r))} />
+        </TabsContent>
 
         <TabsContent value="echeances" className="space-y-4">
           <div className="panel p-4">

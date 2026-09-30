@@ -6,6 +6,7 @@ import { loadCaseFacts } from "./case-facts.server";
 import { buildEmployerPortal } from "./employer-portal.server";
 import { genericDocTitle } from "./message-templates";
 import { assertAcceptedFile } from "./file-signature";
+import { portalPlanTasks, completePortalPlanTask } from "./return-plan.server";
 import { issueWorkerLink, SECURE_LINK_PLACEHOLDER } from "./worker-links.server";
 import { PORTAL_DOC_COLUMNS, visibleInPortal } from "./portal-visibility";
 
@@ -327,6 +328,7 @@ export const getWorkerPortal = createServerFn({ method: "POST" })
       messages: (drafts.data ?? []).map((d: any) => ({ id: d.id as string, text: d.approved_text as string })),
       tasks: (tasks.data ?? []).map((t: any) => ({ id: t.id as string, message: t.message as string, status: t.status as string, due: (t.due_at ?? null) as string | null })),
       sent: (sent.data ?? []).map((d: any) => ({ id: d.id as string, filename: d.filename as string, createdAt: d.created_at as string })),
+      planTasks: (await portalPlanTasks(db, [caseId], "WORKER")).map(({ caseId: _c, ...t }) => t),
     };
   });
 
@@ -361,4 +363,23 @@ export const getWorkerDocUrl = createServerFn({ method: "POST" })
     if (!doc || doc.source === "WORKER" || !visibleInPortal(doc, "WORKER")) throw new Error("Accès refusé");
     const { data: signed } = await db.storage.from("case-documents").createSignedUrl(doc.storage_path, 120);
     return { url: (signed?.signedUrl ?? "") as string };
+  });
+
+/* ----------------------------- return-plan tasks ----------------------------- */
+
+export const employerCompletePlanTask = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ taskId: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { tenantId, companyId } = await employerContext(context.supabase, context.userId);
+    const db = await admin();
+    const { data: cs } = await db.from("cases").select("id").eq("tenant_id", tenantId).eq("company_id", companyId);
+    return completePortalPlanTask(db, { taskId: data.taskId, owner: "EMPLOYER_HR", caseIds: (cs ?? []).map((c: any) => c.id), actorId: context.userId });
+  });
+
+export const workerCompletePlanTask = createServerFn({ method: "POST" })
+  .inputValidator((d) => z.object({ sessionToken: sessionSchema, taskId: z.string().uuid() }).parse(d))
+  .handler(async ({ data }) => {
+    const { db, caseId } = await workerSession(data.sessionToken);
+    return completePortalPlanTask(db, { taskId: data.taskId, owner: "WORKER", caseIds: [caseId], actorId: null });
   });

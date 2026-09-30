@@ -20,7 +20,7 @@
 - [x] a) Missing deadline rules (done in item 5)
 - [x] b) "Ma journée" worklist + risk score
 - [ ] c) Per-field AI extraction validation with evidence
-- [ ] d) Return-to-work plan
+- [x] d) Return-to-work plan
 - [ ] e) Visit booking + prepare visit + post-visit drafts (no dictation)
 - [ ] f) Inaptitude wizard
 - [ ] g) 12 fictional cases with watermarked docs

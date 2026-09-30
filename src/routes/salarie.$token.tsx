@@ -3,7 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { exchangeWorkerLink, getWorkerDocUrl, getWorkerPortal, workerCompleteTask, workerUpload } from "@/lib/portal.functions";
+import { exchangeWorkerLink, getWorkerDocUrl, getWorkerPortal, workerCompletePlanTask, workerCompleteTask, workerUpload } from "@/lib/portal.functions";
 import { fileToBase64, frDate } from "@/lib/file-to-base64";
 import { Button } from "@/components/ui/button";
 
@@ -32,6 +32,7 @@ function WorkerPortal() {
   const fPortal = useServerFn(getWorkerPortal);
   const fUpload = useServerFn(workerUpload);
   const fDone = useServerFn(workerCompleteTask);
+  const fPlanDone = useServerFn(workerCompletePlanTask);
   const fUrl = useServerFn(getWorkerDocUrl);
   const [session, setSession] = useState<string | null>(null);
   const [data, setData] = useState<Portal | null>(null);
@@ -87,6 +88,19 @@ function WorkerPortal() {
             <p className="text-sm text-muted-foreground">Votre service de santé au travail vous accompagne pour votre retour chez {data.company}. Vos informations médicales ne sont jamais transmises à votre employeur.</p>
             <p className="text-xs text-muted-foreground">Session sécurisée jusqu'à {new Date(data.expiresAt).toLocaleTimeString("fr-FR", { timeZone: "Europe/Paris", hour: "2-digit", minute: "2-digit" })}</p>
           </div>
+
+          {data.planTasks.filter((t: any) => t.status !== "DONE").length > 0 && (
+            <div className="panel space-y-3 p-5">
+              <h2 className="font-semibold">Votre plan de retour</h2>
+              {data.planTasks.filter((t: any) => t.status !== "DONE").map((t: any) => (
+                <div key={t.id} className="space-y-2 rounded-md border border-border p-3 text-sm">
+                  <p>{t.title} — {new Date(`${t.due}T12:00:00Z`).toLocaleDateString("fr-FR")}</p>
+                  {t.requiresDocument && <p className="text-xs text-muted-foreground">Envoyez le document ci-dessous avant de valider.</p>}
+                  <Button size="sm" variant="outline" className="w-full" disabled={busy} onClick={() => act(() => fPlanDone({ data: { sessionToken: session, taskId: t.id } }), "C'est noté, merci")}>C'est fait</Button>
+                </div>
+              ))}
+            </div>
+          )}
 
           {data.tasks.filter((t: any) => t.status !== "DONE").length > 0 && (
             <div className="panel space-y-3 p-5">
