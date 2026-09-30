@@ -108,7 +108,8 @@ run("confidentiality and templated coordination (live database)", () => {
   });
 
   it("the employer portal never returns a filename", async () => {
-    await admin.from("documents").insert({ tenant_id: tenant, case_id: caseId, filename: "fiche-poste-secret-nom.pdf", storage_path: `${tenant}/${caseId}/fp.pdf`, confidentiality: "EMPLOYER_VISIBLE", doc_type: "FICHE_POSTE" });
+    const fp = (await admin.from("documents").insert({ tenant_id: tenant, case_id: caseId, filename: "fiche-poste-secret-nom.pdf", storage_path: `${tenant}/${caseId}/fp.pdf`, confidentiality: "EMPLOYER_VISIBLE", doc_type: "FICHE_POSTE", analysis_status: "DONE" }).select("id").single()).data;
+    expect((await admin.rpc("release_document", { _actor: medecin.id, _doc: fp.id })).error).toBeNull();
     const portal = await buildEmployerPortal(admin, tenant, companyId);
     const json = JSON.stringify(portal);
     expect(json).not.toMatch(/filename|\.pdf|secret-nom|cr-hospitalisation/);
@@ -134,5 +135,54 @@ run("confidentiality and templated coordination (live database)", () => {
     const { error: st } = await admin.from("coordination_tasks").update({ status: "SENT" }).eq("id", task.id);
     expect(st).toBeNull();
     expect((await admin.from("coordination_tasks").select("message").eq("id", task.id).single()).data.message).toBe(task.message);
+  });
+
+  it("a staff document marked 'Visible employeur' stays hidden before analysis, after FAILED, and before release", async () => {
+    const inPortal = async (id: string) => (await buildEmployerPortal(admin, tenant, companyId)).cases[0].documents.some((d: any) => d.id === id);
+    const doc = (await admin.from("documents").insert({ tenant_id: tenant, case_id: caseId, filename: "courrier.pdf", storage_path: `${tenant}/${caseId}/c.pdf`, confidentiality: "EMPLOYER_VISIBLE", doc_type: "AUTRE", uploaded_by: coord.id, released_at: new Date().toISOString() }).select("id, released_at, analysis_status").single()).data;
+    expect(doc.released_at).toBeNull(); // cannot be pre-released on insert
+    expect(await inPortal(doc.id)).toBe(false); // before analysis
+
+    await admin.from("documents").update({ analysis_status: "FAILED" }).eq("id", doc.id);
+    expect(await inPortal(doc.id)).toBe(false); // FAILED
+    expect((await admin.rpc("release_document", { _actor: medecin.id, _doc: doc.id })).error?.message).toMatch(/analysis/);
+
+    await admin.from("documents").update({ analysis_status: "DONE", doc_type: "COURRIER_EMPLOYEUR" }).eq("id", doc.id);
+    expect(await inPortal(doc.id)).toBe(false); // analysed but not released
+    // Direct release is blocked even with full database rights; coordinator cannot release.
+    expect((await admin.from("documents").update({ released_at: new Date().toISOString() }).eq("id", doc.id)).error?.message).toMatch(/release_document/);
+    expect((await admin.rpc("release_document", { _actor: coord.id, _doc: doc.id })).error?.message).toMatch(/role/);
+    const { error: direct } = await coord.sb.rpc("release_document" as any, { _actor: medecin.id, _doc: doc.id });
+    expect(direct).not.toBeNull();
+    expect(await inPortal(doc.id)).toBe(false);
+
+    expect((await admin.rpc("release_document", { _actor: medecin.id, _doc: doc.id })).error).toBeNull();
+    expect(await inPortal(doc.id)).toBe(true);
+    const logs = (await admin.from("audit_log").select("action, user_id").eq("entity_id", doc.id).like("action", "RELEASE%")).data;
+    expect(logs).toEqual([{ action: "RELEASE_EMPLOYER_VISIBLE", user_id: medecin.id }]);
+
+    // Reclassified as clinical: raised to MEDICAL, release withdrawn, hidden again.
+    await admin.from("documents").update({ doc_type: "COMPTE_RENDU" }).eq("id", doc.id);
+    const after = (await admin.from("documents").select("confidentiality, released_at").eq("id", doc.id).single()).data;
+    expect(after).toEqual({ confidentiality: "MEDICAL", released_at: null });
+    expect(await inPortal(doc.id)).toBe(false);
+  });
+
+  it("documents the employer uploaded stay visible to them without release", async () => {
+    const own = (await admin.from("documents").insert({ tenant_id: tenant, case_id: caseId, filename: "ma-fiche.pdf", storage_path: `${tenant}/${caseId}/own.pdf`, confidentiality: "EMPLOYER_VISIBLE", doc_type: "FICHE_POSTE", source: "EMPLOYER" }).select("id").single()).data;
+    const portal = await buildEmployerPortal(admin, tenant, companyId);
+    expect(portal.cases[0].documents.some((d: any) => d.id === own.id)).toBe(true);
+  });
+
+  it("deadlines use the case's stoppages only, not other stoppages of the worker", async () => {
+    const w = (await admin.from("cases").select("worker_id").eq("id", caseId).single()).data.worker_id;
+    await admin.from("work_stoppages").insert([
+      { tenant_id: tenant, worker_id: w, case_id: null, start_date: "2020-01-01", end_date: "2020-06-30", origin: "MALADIE", kind: "INITIAL", row_hash: `old-${caseId}` },
+      { tenant_id: tenant, worker_id: w, case_id: caseId, start_date: "2026-01-01", end_date: "2026-01-10", origin: "MALADIE", kind: "INITIAL", row_hash: `new-${caseId}` },
+    ]);
+    const portal = await buildEmployerPortal(admin, tenant, companyId);
+    expect(portal.cases[0].periods).toEqual([{ start: "2026-01-01", end: "2026-01-10" }]);
+    expect(portal.cases[0].deadlines).toEqual([]);
+    await admin.from("work_stoppages").delete().eq("tenant_id", tenant);
   });
 });
