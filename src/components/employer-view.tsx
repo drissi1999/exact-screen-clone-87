@@ -2,7 +2,7 @@ import { UPLOAD_ACCEPT } from "@/lib/file-signature";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { employerCompleteTask, employerUpload, getEmployerDocUrl, getEmployerPortal } from "@/lib/portal.functions";
+import { employerCompletePlanTask, employerCompleteTask, employerUpload, getEmployerDocUrl, getEmployerPortal } from "@/lib/portal.functions";
 import { fileToBase64, frDate } from "@/lib/file-to-base64";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,7 @@ export function EmployerView({ asCompanyId }: { asCompanyId?: string }) {
   const fUrl = useServerFn(getEmployerDocUrl);
   const fUpload = useServerFn(employerUpload);
   const fDone = useServerFn(employerCompleteTask);
+  const fPlanDone = useServerFn(employerCompletePlanTask);
   const { data, isLoading, error } = useQuery({ queryKey: ["employer-portal", asCompanyId ?? "me"], queryFn: () => fPortal({ data: { asCompanyId } }) });
 
   async function act(fn: () => Promise<unknown>, ok: string) {
@@ -56,6 +57,17 @@ export function EmployerView({ asCompanyId }: { asCompanyId?: string }) {
               <p className="font-medium">Échéances vous concernant</p>
               {c.deadlines.map((d: any) => (
                 <p key={d.code} className="text-muted-foreground">{d.label} — limite {frDate(d.due)} <Badge variant={d.status === "DEPASSEE" ? "destructive" : "outline"}>{STATUS[d.status]}</Badge> <Badge variant="outline">à valider juridiquement</Badge></p>
+              ))}
+            </div>
+          )}
+          {c.planTasks.length > 0 && (
+            <div className="space-y-2 text-sm">
+              <p className="font-medium">Plan de retour : vos actions</p>
+              {c.planTasks.map((t: any) => (
+                <div key={t.id} className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border p-3">
+                  <p>{t.title} — {frDate(t.due)}{t.requiresDocument && t.status !== "DONE" ? " · document à envoyer" : ""}</p>
+                  {t.status === "DONE" || readOnly ? <Badge variant="secondary">{t.status === "DONE" ? "Fait" : "À faire"}</Badge> : <Button size="sm" variant="outline" onClick={() => act(() => fPlanDone({ data: { taskId: t.id } }), "Action marquée comme faite")}>C'est fait</Button>}
+                </div>
               ))}
             </div>
           )}
