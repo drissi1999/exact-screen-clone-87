@@ -23,8 +23,8 @@
 - [x] d) Return-to-work plan
 - [ ] e) Visit booking + prepare visit + post-visit drafts (no dictation)
 - [ ] f) Inaptitude wizard
-- [ ] g) 12 fictional cases with watermarked docs
+- [x] g) 12 fictional cases with watermarked docs
 - [ ] h) Dashboards
-- [ ] d2) Plan alerts: "Pris en charge" with mandatory note (logged); outcomes never in portals; tests
-- [ ] d3) Manual check of Plan de retour tab (coordinator + employer view)
-- [ ] g2) "Réinitialiser la démo" (admin, typed confirmation, own SPSTI only, logged) + 12 dated fictional cases with watermarked docs; tests
+- [x] d2) Plan alerts: "Pris en charge" with mandatory note (logged); outcomes never in portals; tests
+- [x] d3) Manual check of Plan de retour tab (coordinator + employer view)
+- [x] g2) "Réinitialiser la démo" (admin, typed confirmation, own SPSTI only, logged) + 12 dated fictional cases with watermarked docs; tests
