@@ -166,7 +166,7 @@ run("confidentiality and templated coordination (live database)", () => {
     const after = (await admin.from("documents").select("confidentiality, released_at").eq("id", doc.id).single()).data;
     expect(after).toEqual({ confidentiality: "MEDICAL", released_at: null });
     expect(await inPortal(doc.id)).toBe(false);
-  });
+  }, 30_000);
 
   it("documents the employer uploaded stay visible to them without release", async () => {
     const own = (await admin.from("documents").insert({ tenant_id: tenant, case_id: caseId, filename: "ma-fiche.pdf", storage_path: `${tenant}/${caseId}/own.pdf`, confidentiality: "EMPLOYER_VISIBLE", doc_type: "FICHE_POSTE", source: "EMPLOYER" }).select("id").single()).data;

@@ -7,10 +7,11 @@ import { DeadlineBadge, StatusBadge, frDate, todayIso } from "@/components/kit";
 import { markDeadlineDoneFn } from "@/lib/deadlines.functions";
 import { DONE_LABELS } from "@/lib/rules";
 
-type D = { code: string; kind: string; status: string; due: string | null; doneOn?: string | null };
+type D = { code: string; kind: string; status: string; due: string | null; doneOn?: string | null; plannedOn?: string | null };
 
 export function DeadlineStatus({ d }: { d: D }) {
   if (d.status === "FAIT") return <StatusBadge tone="done">Fait le {frDate(d.doneOn)}</StatusBadge>;
+  if (d.status === "PLANIFIEE") return <StatusBadge tone="done">Planifiée le {frDate(d.plannedOn)}</StatusBadge>;
   if (d.status === "NON_REALISE") return <StatusBadge>Non réalisé</StatusBadge>;
   if (d.status === "ECHUE") return <StatusBadge>Échue le {frDate(d.due)}</StatusBadge>;
   if (!d.due) return <StatusBadge>Dès la reprise connue</StatusBadge>;

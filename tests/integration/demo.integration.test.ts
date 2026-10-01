@@ -69,6 +69,7 @@ run("Démo (live database)", () => {
     const day = await buildMyDay(admin, coordA, todayParis());
     expect(day.groups.EN_RETARD.length).toBeGreaterThanOrEqual(1);
     expect(day.groups.EN_RETARD.length).toBeLessThanOrEqual(3);
+    expect(day.groups.EN_RETARD.map((r) => r.worker)).toEqual(["Masson Julien"]);
     expect(day.groups.AUJOURDHUI.length + day.groups.PLAN_TACHES.length).toBeGreaterThanOrEqual(1);
     expect(day.groups.SEMAINE.length).toBeGreaterThanOrEqual(2);
     expect(day.groups.PLAN_ALERTES).toHaveLength(1);

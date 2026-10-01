@@ -1,3 +1,4 @@
+import { CaseVisits } from "@/components/visits";
 import { UPLOAD_ACCEPT } from "@/lib/file-signature";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -56,6 +57,7 @@ const DEADLINE_STATUS: Record<string, { label: string; v: "default" | "secondary
   FAIT: { label: "Fait", v: "secondary" },
   NON_REALISE: { label: "Non réalisé", v: "secondary" },
   ECHUE: { label: "Échue", v: "secondary" },
+  PLANIFIEE: { label: "Planifiée", v: "secondary" },
 };
 const ACTIVE = new Set(["A_VENIR", "EN_COURS", "DEPASSEE"]);
 const TASK_STATUS: Record<string, string> = { PENDING: "À envoyer", SENT: "Envoyé", ESCALATED: "Escaladé", DONE: "Terminé" };
@@ -230,6 +232,8 @@ function CasePage() {
           <ReturnPlanTab caseId={caseId} documents={data.documents} onUpload={uploadForPlan} canEdit={!!me?.roles.some((r) => ["PDP_COORDINATOR", "IDEST", "MEDECIN_TRAVAIL"].includes(r))} />
         </section>
       )}
+
+      <CaseVisits caseId={caseId} canBook={isStaffEditor} canPrepare={!!me?.roles.some((r) => ["IDEST", "MEDECIN_TRAVAIL"].includes(r))} onChange={refresh} />
 
       <section className="space-y-3">
         <h2 className="text-sm font-semibold text-muted-foreground">Prochaines étapes <span className="font-normal">· {steps.length}</span></h2>

@@ -1147,6 +1147,81 @@ export type Database = {
           },
         ]
       }
+      visits: {
+        Row: {
+          avis_draft_id: string | null
+          avis_type: string | null
+          case_id: string
+          created_at: string
+          created_by: string
+          id: string
+          kind: string
+          letter_draft_id: string | null
+          outcome_at: string | null
+          outcome_by: string | null
+          practitioner_id: string
+          questions_draft_id: string | null
+          restrictions: string | null
+          scheduled_at: string
+          status: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          avis_draft_id?: string | null
+          avis_type?: string | null
+          case_id: string
+          created_at?: string
+          created_by: string
+          id?: string
+          kind: string
+          letter_draft_id?: string | null
+          outcome_at?: string | null
+          outcome_by?: string | null
+          practitioner_id: string
+          questions_draft_id?: string | null
+          restrictions?: string | null
+          scheduled_at: string
+          status?: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          avis_draft_id?: string | null
+          avis_type?: string | null
+          case_id?: string
+          created_at?: string
+          created_by?: string
+          id?: string
+          kind?: string
+          letter_draft_id?: string | null
+          outcome_at?: string | null
+          outcome_by?: string | null
+          practitioner_id?: string
+          questions_draft_id?: string | null
+          restrictions?: string | null
+          scheduled_at?: string
+          status?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "visits_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "cases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "visits_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       work_stoppages: {
         Row: {
           case_id: string | null

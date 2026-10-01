@@ -365,6 +365,7 @@ export const reviewDraft = createServerFn({ method: "POST" })
     // Role check (required_role in the draft's tenant), update and audit happen together in public.review_draft.
     const { error } = await (await db()).rpc("review_draft", { _draft: data.draftId, _actor: context.userId, _status: data.status, _text: data.text ?? null });
     if (error) throw new Error(error.message.includes("role") ? "Vous n'avez pas le rôle requis pour valider ce document" : "Brouillon introuvable");
+    if (data.status === "APPROVED") await (await import("./visits.server")).onDraftApproved(await db(), data.draftId);
     return { ok: true };
   });
 
