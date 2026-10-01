@@ -13,7 +13,7 @@ import { AVIS_TYPE_LABELS, VISIT_KIND_LABELS } from "@/lib/message-templates";
 const KIND_FOR_CODE: Record<string, string> = { RDV_LIAISON: "RDV_LIAISON", PRE_REPRISE: "PRE_REPRISE", VISITE_REPRISE: "VISITE_REPRISE" };
 const field = "rounded-md border border-input bg-background px-2 py-1.5 text-sm";
 
-export function BookVisitForm({ caseId, code, onDone, onCancel }: { caseId: string; code?: string; onDone: () => void; onCancel?: () => void }) {
+export function BookVisitForm({ caseId, code, onDone, onCancel }: { caseId: string; code?: string | undefined; onDone: () => void; onCancel?: () => void }) {
   const fetchPeople = useServerFn(listPractitionersFn);
   const book = useServerFn(bookVisitFn);
   const { data: people } = useQuery({ queryKey: ["practitioners"], queryFn: () => fetchPeople() });
@@ -76,7 +76,7 @@ export function CaseVisits({ caseId, canBook, canPrepare, onChange }: { caseId: 
       )}
       {(data ?? []).length > 0 && (
         <div className="panel divide-y divide-border">
-          {data!.map((v) => (
+          {data!.map((v: any) => (
             <div key={v.id} className="flex flex-wrap items-center gap-3 px-4 py-3 text-sm">
               <div className="min-w-48 flex-1">
                 <p className="font-medium">{VISIT_KIND_LABELS[v.kind]}</p>

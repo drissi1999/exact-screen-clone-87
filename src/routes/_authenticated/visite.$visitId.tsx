@@ -87,7 +87,7 @@ function PrepPage() {
           {data.gaps.length ? <ul className="list-disc space-y-1 pl-5 text-sm">{data.gaps.map((g, i) => <li key={i}>{g.text}</li>)}</ul> : <p className="text-sm text-muted-foreground">Aucun point manquant détecté.</p>}
         </Block>
         <Block title="Contraintes du poste (fiche de poste)">
-          {data.jobConstraints.length ? data.jobConstraints.map((j) => <pre key={j.id} className="whitespace-pre-wrap font-sans text-sm">{j.text}</pre>) : <p className="text-sm text-muted-foreground">Pas de fiche de poste au dossier.</p>}
+          {data.jobConstraints.length ? data.jobConstraints.map((j: any) => <pre key={j.id} className="whitespace-pre-wrap font-sans text-sm">{j.text}</pre>) : <p className="text-sm text-muted-foreground">Pas de fiche de poste au dossier.</p>}
         </Block>
         <Block title="Avis et restrictions précédents">
           {data.previousAvis.length ? (
@@ -126,7 +126,7 @@ function PrepPage() {
         ) : (
           <div className="space-y-3">
             <p className="text-sm">Avis : <strong>{AVIS_TYPE_LABELS[v.avisType ?? ""]}</strong>{v.restrictions ? ` — ${v.restrictions}` : ""}</p>
-            {data.outcomeDrafts.map((d) => (
+            {data.outcomeDrafts.map((d: any) => (
               <div key={d.id} className="rounded-md border border-border p-3 text-sm">
                 <div className="mb-2 flex items-center justify-between gap-2">
                   <span className="text-xs text-muted-foreground">{d.kind === "AVIS_VISITE" ? "Avis pour l'employeur" : "Courrier à l'employeur"} · modèle fixe</span>
