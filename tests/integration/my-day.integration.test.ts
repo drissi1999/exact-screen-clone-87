@@ -67,6 +67,8 @@ run("Ma journée (live database)", () => {
     expect(late).not.toContain(calmCase);
     const row = day.groups.EN_RETARD.find((r) => r.caseId === overdueCase)!;
     expect(row.topFactors).toHaveLength(2);
+    // Declaration and reserves are both late: one row, the second issue under "+1 autre".
+    expect(row.others.length).toBeGreaterThanOrEqual(1);
     expect(row.worker).toBe("Retard Fictif");
     expect(day.toHandleToday).toBeGreaterThanOrEqual(1);
   });
