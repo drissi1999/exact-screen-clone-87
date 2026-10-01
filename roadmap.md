@@ -21,7 +21,7 @@
 - [x] b) "Ma journée" worklist + risk score
 - [ ] c) Per-field AI extraction validation with evidence
 - [x] d) Return-to-work plan
-- [ ] e) Visit booking + prepare visit + post-visit drafts (no dictation)
+- [x] e) Visit booking + prepare visit + post-visit drafts (no dictation); demo obligations done with plausible dates; "+N autre(s)" in Ma journée
 - [ ] f) Inaptitude wizard
 - [x] g) 12 fictional cases with watermarked docs
 - [ ] h) Dashboards
