@@ -25,6 +25,7 @@ import { Route as AuthenticatedVisitesRouteImport } from './routes/_authenticate
 import { Route as InvitationTokenRouteImport } from './routes/invitation.$token'
 import { Route as SalarieTokenRouteImport } from './routes/salarie.$token'
 import { Route as AuthenticatedDossiersCaseIdRouteImport } from './routes/_authenticated/dossiers_.$caseId'
+import { Route as AuthenticatedParametresDemandesDemoRouteImport } from './routes/_authenticated/parametres.demandes-demo'
 import { Route as AuthenticatedParametresEquipeRouteImport } from './routes/_authenticated/parametres.equipe'
 import { Route as AuthenticatedParametresImportsRouteImport } from './routes/_authenticated/parametres.imports'
 import { Route as ApiPublicIngestStoppagesRouteImport } from './routes/api/public/ingest/stoppages'
@@ -111,6 +112,12 @@ const AuthenticatedDossiersCaseIdRoute =
     path: '/dossiers/$caseId',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedParametresDemandesDemoRoute =
+  AuthenticatedParametresDemandesDemoRouteImport.update({
+    id: '/parametres/demandes-demo',
+    path: '/parametres/demandes-demo',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedParametresEquipeRoute =
   AuthenticatedParametresEquipeRouteImport.update({
     id: '/parametres/equipe',
@@ -146,6 +153,7 @@ export interface FileRoutesByFullPath {
   '/invitation/$token': typeof InvitationTokenRoute
   '/salarie/$token': typeof SalarieTokenRoute
   '/dossiers/$caseId': typeof AuthenticatedDossiersCaseIdRoute
+  '/parametres/demandes-demo': typeof AuthenticatedParametresDemandesDemoRoute
   '/parametres/equipe': typeof AuthenticatedParametresEquipeRoute
   '/parametres/imports': typeof AuthenticatedParametresImportsRoute
   '/api/public/ingest/stoppages': typeof ApiPublicIngestStoppagesRoute
@@ -166,6 +174,7 @@ export interface FileRoutesByTo {
   '/invitation/$token': typeof InvitationTokenRoute
   '/salarie/$token': typeof SalarieTokenRoute
   '/dossiers/$caseId': typeof AuthenticatedDossiersCaseIdRoute
+  '/parametres/demandes-demo': typeof AuthenticatedParametresDemandesDemoRoute
   '/parametres/equipe': typeof AuthenticatedParametresEquipeRoute
   '/parametres/imports': typeof AuthenticatedParametresImportsRoute
   '/api/public/ingest/stoppages': typeof ApiPublicIngestStoppagesRoute
@@ -188,6 +197,7 @@ export interface FileRoutesById {
   '/invitation/$token': typeof InvitationTokenRoute
   '/salarie/$token': typeof SalarieTokenRoute
   '/_authenticated/dossiers_/$caseId': typeof AuthenticatedDossiersCaseIdRoute
+  '/_authenticated/parametres/demandes-demo': typeof AuthenticatedParametresDemandesDemoRoute
   '/_authenticated/parametres/equipe': typeof AuthenticatedParametresEquipeRoute
   '/_authenticated/parametres/imports': typeof AuthenticatedParametresImportsRoute
   '/api/public/ingest/stoppages': typeof ApiPublicIngestStoppagesRoute
@@ -210,6 +220,7 @@ export interface FileRouteTypes {
     | '/invitation/$token'
     | '/salarie/$token'
     | '/dossiers/$caseId'
+    | '/parametres/demandes-demo'
     | '/parametres/equipe'
     | '/parametres/imports'
     | '/api/public/ingest/stoppages'
@@ -230,6 +241,7 @@ export interface FileRouteTypes {
     | '/invitation/$token'
     | '/salarie/$token'
     | '/dossiers/$caseId'
+    | '/parametres/demandes-demo'
     | '/parametres/equipe'
     | '/parametres/imports'
     | '/api/public/ingest/stoppages'
@@ -251,6 +263,7 @@ export interface FileRouteTypes {
     | '/invitation/$token'
     | '/salarie/$token'
     | '/_authenticated/dossiers_/$caseId'
+    | '/_authenticated/parametres/demandes-demo'
     | '/_authenticated/parametres/equipe'
     | '/_authenticated/parametres/imports'
     | '/api/public/ingest/stoppages'
@@ -379,6 +392,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDossiersCaseIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/parametres/demandes-demo': {
+      id: '/_authenticated/parametres/demandes-demo'
+      path: '/parametres/demandes-demo'
+      fullPath: '/parametres/demandes-demo'
+      preLoaderRoute: typeof AuthenticatedParametresDemandesDemoRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/parametres/equipe': {
       id: '/_authenticated/parametres/equipe'
       path: '/parametres/equipe'
@@ -415,6 +435,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedTableauDeBordRoute: typeof AuthenticatedTableauDeBordRoute
   AuthenticatedVisitesRoute: typeof AuthenticatedVisitesRoute
   AuthenticatedDossiersCaseIdRoute: typeof AuthenticatedDossiersCaseIdRoute
+  AuthenticatedParametresDemandesDemoRoute: typeof AuthenticatedParametresDemandesDemoRoute
   AuthenticatedParametresEquipeRoute: typeof AuthenticatedParametresEquipeRoute
   AuthenticatedParametresImportsRoute: typeof AuthenticatedParametresImportsRoute
 }
@@ -431,6 +452,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedTableauDeBordRoute: AuthenticatedTableauDeBordRoute,
   AuthenticatedVisitesRoute: AuthenticatedVisitesRoute,
   AuthenticatedDossiersCaseIdRoute: AuthenticatedDossiersCaseIdRoute,
+  AuthenticatedParametresDemandesDemoRoute:
+    AuthenticatedParametresDemandesDemoRoute,
   AuthenticatedParametresEquipeRoute: AuthenticatedParametresEquipeRoute,
   AuthenticatedParametresImportsRoute: AuthenticatedParametresImportsRoute,
 }

@@ -3,6 +3,8 @@ import { useEffect, useState } from "react";
 import { ArrowRight, Building2, ClipboardList, FileInput, HeartPulse, History, Lock, Server, Stethoscope, User, Users } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { useServerFn } from "@tanstack/react-start";
+import { submitDemoRequest } from "@/lib/deadlines.functions";
 import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/")({
@@ -20,9 +22,9 @@ export const Route = createFileRoute("/")({
 });
 
 const FIGURES = [
-  { value: "−30 %", label: "de temps de préparation des visites" },
-  { value: "100 %", label: "des faits de la chronologie reliés à leur source" },
-  { value: "0", label: "échéance légale oubliée" },
+  { value: "8 jours", label: "Chaque visite de reprise suivie dans le délai légal, avec alerte avant échéance." },
+  { value: "100 %", label: "Des consultations de données médicales tracées dans un journal infalsifiable." },
+  { value: "0", label: "Information médicale transmise à l'employeur. Il ne voit que les décisions et les tâches qui le concernent." },
 ];
 const STEPS = [
   { icon: FileInput, title: "Documents reçus", body: "Arrêts, comptes rendus, fiches de poste : chaque pièce est lue, classée et protégée selon son niveau de confidentialité." },
@@ -30,20 +32,22 @@ const STEPS = [
   { icon: HeartPulse, title: "Décision et suivi", body: "Plan de retour partagé, tâches pour l'employeur et le salarié, suivis à J+7, J+30 et J+90." },
 ];
 const USERS = [
-  { icon: Stethoscope, title: "Médecin du travail", body: "Ses visites de la semaine préparées, les faits validés en un clic." },
-  { icon: Users, title: "IDEST et cellule PDP", body: "Une journée triée par priorité, une action par dossier." },
-  { icon: Building2, title: "Employeur", body: "Les demandes du service et les absences, jamais d'information médicale." },
-  { icon: User, title: "Salarié", body: "Son parcours sur mobile, par lien sécurisé, sans compte à créer." },
+  { icon: Stethoscope, title: "Médecin du travail", body: "Un dossier lisible en deux minutes : chronologie sourcée, synthèse à valider, avis et courriers préparés." },
+  { icon: Users, title: "IDEST et cellule PDP", body: "Une liste de travail quotidienne, priorisée, avec les relances déjà préparées." },
+  { icon: Building2, title: "Employeur", body: "Les démarches qui le concernent, les échéances légales, et rien de médical." },
+  { icon: User, title: "Salarié", body: "Son parcours de retour expliqué simplement, ses rendez-vous et ses documents, depuis son téléphone." },
 ];
 const SECURITY = [
-  { icon: Lock, title: "Secret médical", body: "Le cloisonnement est appliqué par la base de données : l'employeur ne voit ni diagnostic ni titre de document médical." },
-  { icon: History, title: "Journal d'accès", body: "Chaque consultation d'une pièce médicale et chaque validation sont tracées, qui et quand." },
-  { icon: Server, title: "Hébergement", body: "Données hébergées dans l'Union européenne. Certification HDS visée pour la mise en production." },
+  { icon: Lock, title: "Secret médical", body: "Secret médical garanti par la base de données elle-même, pas seulement par l'interface." },
+  { icon: History, title: "Journal d'accès", body: "Chaque accès à une donnée médicale est enregistré." },
+  { icon: Server, title: "Hébergement", body: "Prototype de démonstration : données fictives uniquement. La version de production sera hébergée en France sur un hébergeur certifié HDS." },
 ];
 
 function Index() {
   const [signedIn, setSignedIn] = useState(false);
   const [sent, setSent] = useState(false);
+  const [sending, setSending] = useState(false);
+  const submit = useServerFn(submitDemoRequest);
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSignedIn(!!data.session));
   }, []);
@@ -74,8 +78,7 @@ function Index() {
         <div className="mt-20 grid gap-4 sm:grid-cols-3">
           {FIGURES.map((f) => (
             <div key={f.label} className="panel p-6">
-              <span className="rounded-full border border-border bg-muted px-2 py-0.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Objectif</span>
-              <p className="mt-4 text-4xl font-semibold tracking-tight text-primary">{f.value}</p>
+              <p className="text-4xl font-semibold tracking-tight text-primary">{f.value}</p>
               <p className="mt-2 text-sm text-muted-foreground">{f.label}</p>
             </div>
           ))}
@@ -137,9 +140,21 @@ function Index() {
           {sent ? (
             <p className="text-sm font-medium text-primary">Merci, nous revenons vers vous rapidement.</p>
           ) : (
-            <form className="flex w-full max-w-md gap-2" onSubmit={(e) => { e.preventDefault(); setSent(true); toast.success("Demande reçue (prototype : aucun envoi réel)"); }}>
-              <input required type="email" placeholder="Votre e-mail professionnel" className="flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm" />
-              <Button type="submit">Demander une démo</Button>
+            <form className="grid w-full max-w-md gap-2" onSubmit={async (e) => {
+              e.preventDefault();
+              const f = new FormData(e.currentTarget);
+              setSending(true);
+              try {
+                await submit({ data: { fullName: String(f.get("fullName")), organisation: String(f.get("organisation")), email: String(f.get("email")), message: String(f.get("message") ?? "") } });
+                setSent(true);
+              } catch { toast.error("Envoi impossible, vérifiez les champs et réessayez"); }
+              finally { setSending(false); }
+            }}>
+              <input name="fullName" required minLength={2} maxLength={100} placeholder="Nom et prénom" className="rounded-md border border-input bg-background px-3 py-2 text-sm" />
+              <input name="organisation" required minLength={2} maxLength={150} placeholder="Organisation (SPSTI, entreprise…)" className="rounded-md border border-input bg-background px-3 py-2 text-sm" />
+              <input name="email" required type="email" maxLength={255} placeholder="E-mail professionnel" className="rounded-md border border-input bg-background px-3 py-2 text-sm" />
+              <textarea name="message" maxLength={1000} rows={3} placeholder="Message (facultatif)" className="rounded-md border border-input bg-background px-3 py-2 text-sm" />
+              <Button type="submit" disabled={sending}>Demander une démo</Button>
             </form>
           )}
         </div>
