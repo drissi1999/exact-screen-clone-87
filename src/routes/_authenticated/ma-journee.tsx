@@ -180,7 +180,7 @@ function MyDay() {
                   <p className="truncate text-xs text-muted-foreground">{r.company}{r.origin ? ` · ${ORIGINS[r.origin] ?? r.origin}` : ""}</p>
                 </div>
                 <p className={cn("min-w-48 flex-1 truncate text-sm", g.key === "EN_RETARD" && "text-destructive")} title={r.detail ?? r.reason}>{r.reason}</p>
-                <div className="w-40" title={r.topFactors.map((f) => `+${f.points} ${f.libelle}`).join("\n")}><PriorityIndicator score={r.score} factor={r.topFactors[0]?.libelle} /></div>
+                <div className="w-40" title={r.topFactors.map((f) => `+${f.points} ${f.libelle}`).join("\n")}><PriorityIndicator score={r.score} factor={r.topFactors[0]?.libelle ?? null} /></div>
                 <div className="flex gap-2">
                   <Button size="sm" disabled={busy === r.caseId} onClick={(e) => { e.stopPropagation(); act(r.caseId, r.action); }}>{ACTION_LABEL[r.action]}</Button>
                   {r.alertTaskIds?.length ? <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); setAckFor(ackFor === r.caseId ? null : r.caseId); setAckNote(""); }}>Pris en charge</Button> : null}
