@@ -48,6 +48,8 @@ type Spec = {
   cpam?: boolean; knownAt?: number; avis?: { type: string; at: number }; closedAt?: number;
   plan?: { scenario: Scenario; status: "BROUILLON" | "EN_COURS"; target: number; actual?: number; done?: string[]; outcomes?: Record<string, Outcome> };
   docs: Doc[]; missing?: "DOC_DAT" | "DOC_FICHE_POSTE";
+  /** Obligations already done: code -> day offset (plausible dates, so only deliberate problems stay red). */
+  done?: Record<string, number>;
 };
 
 const COMPANIES = [
@@ -66,7 +68,7 @@ const fr = (s: string) => new Date(`${s}T12:00:00Z`).toLocaleDateString("fr-FR")
 
 function specs(d: (n: number) => string): Spec[] {
   return [
-    { key: "cariste", company: 0, last: "Benali", first: "Karim", birth: "1978-04-12", job: "Cariste", cpam: true, knownAt: -40,
+    { key: "cariste", company: 0, last: "Benali", first: "Karim", birth: "1978-04-12", job: "Cariste", cpam: true, knownAt: -40, done: { DECLARATION_AT: -39, RESERVES_MOTIVEES: -33 },
       stops: [{ from: -40, to: 4, origin: "AT" }],
       docs: [arret(d, -40, 4, "INITIAL", "Accident du travail : chute de charge lors d'un déchargement"),
         { type: "COMPTE_RENDU", conf: "MEDICAL", file: "cr-rhumato.pdf", title: "Compte rendu de consultation — rhumatologie", lines: ["Lombalgie aiguë post-traumatique, sans signe neurologique.", "Kinésithérapie 10 séances. Port de charges lourdes à éviter 4 semaines après la reprise."], facts: [{ at: -20, label: "Consultation rhumatologie : lombalgie post-traumatique, kinésithérapie prescrite", approved: true }] },
@@ -88,7 +90,7 @@ function specs(d: (n: number) => string): Spec[] {
       docs: [{ ...arret(d, -35, 10, "INITIAL", "Fracture du poignet gauche, accident de trajet"), facts: [{ at: -35, label: `Arrêt de travail du ${fr(d(-35))} au ${fr(d(10))}` }] },
         // Conflicting date: the surgeon's report mentions a later return than the sick note.
         { type: "COMPTE_RENDU", conf: "MEDICAL", file: "cr-chirurgie-main.pdf", title: "Compte rendu — chirurgie de la main", lines: ["Fracture de l'extrémité distale du radius, ostéosynthèse.", `Reprise du travail envisagée le ${fr(d(14))}.`], facts: [{ at: -5, label: `Chirurgie de la main : reprise envisagée le ${fr(d(14))} (différente de la fin d'arrêt du ${fr(d(10))})` }] }] },
-    { key: "btp", company: 2, last: "Caron", first: "Thierry", birth: "1966-11-08", job: "Maçon coffreur (BTP)", cpam: true, knownAt: -80,
+    { key: "btp", company: 2, last: "Caron", first: "Thierry", birth: "1966-11-08", job: "Maçon coffreur (BTP)", cpam: true, knownAt: -80, done: { DECLARATION_AT: -78, RESERVES_MOTIVEES: -72 },
       stops: [{ from: -80, to: null, origin: "AT" }], avis: { type: "INAPTITUDE", at: -10 }, missing: "DOC_DAT",
       docs: [arret(d, -80, null, "INITIAL", "Accident du travail : chute de hauteur (échafaudage)"),
         { type: "COMPTE_RENDU", conf: "MEDICAL", file: "cr-traumato.pdf", title: "Compte rendu — traumatologie", lines: ["Fracture du calcanéum droit. Station debout prolongée et travail en hauteur contre-indiqués."], facts: [{ at: -40, label: "Traumatologie : fracture du calcanéum, travail en hauteur contre-indiqué", approved: true }] },
@@ -99,11 +101,12 @@ function specs(d: (n: number) => string): Spec[] {
       docs: [arret(d, -270, null, "INITIAL"),
         { type: "COMPTE_RENDU", conf: "MEDICAL", file: "cr-oncologie.pdf", title: "Compte rendu — oncologie", lines: ["Fin des traitements du cancer du sein. Fatigabilité persistante.", "Temps partiel thérapeutique recommandé."], facts: [{ at: -21, label: "Oncologie : traitements terminés, temps partiel thérapeutique recommandé", approved: true }] }] },
     { key: "nuit", company: 0, last: "Masson", first: "Julien", birth: "1983-08-25", job: "Opérateur de production (poste de nuit)",
-      stops: [{ from: -39, to: 0, origin: "MALADIE" }],
+      // Deliberate problem: back at work since 9 days, visite de reprise not organised (2 days late).
+      stops: [{ from: -75, to: -10, origin: "MALADIE" }],
       docs: [{ type: "COMPTE_RENDU", conf: "MEDICAL", file: "cr-diabetologie.pdf", title: "Compte rendu — diabétologie", lines: ["Diabète de type 1 déséquilibré, adaptation de l'insulinothérapie.", "Horaires de nuit à discuter avec le médecin du travail."], facts: [{ at: -12, label: "Diabétologie : restrictions horaires (nuit) à discuter", approved: true }] },
         { type: "FICHE_POSTE", conf: "PDP_SHARED", file: "fiche-poste-nuit.pdf", title: "Fiche de poste — Opérateur de nuit", lines: ["Conduite de ligne, 21 h - 5 h, pauses fixes."], facts: [{ at: -6, label: "Fiche de poste reçue : poste de nuit 21 h - 5 h", approved: true }] }] },
     { key: "retour", company: 1, last: "Haddad", first: "Fatima", birth: "1980-12-05", job: "Agent de service hospitalier",
-      stops: [{ from: -96, to: -22, origin: "MALADIE" }],
+      stops: [{ from: -96, to: -22, origin: "MALADIE" }], done: { VISITE_REPRISE: -18 },
       plan: { scenario: "MEME_POSTE", status: "EN_COURS", target: -21, actual: -21, done: ["CONFIRMER_DATE", "PREPARER_ACCUEIL", "VISITE_REPRISE"], outcomes: { POINT_1S: "DIFFICULTES" } },
       docs: [arret(d, -96, -22, "INITIAL"),
         { type: "COMPTE_RENDU", conf: "MEDICAL", file: "cr-visite-reprise.pdf", title: "Compte rendu — visite de reprise", lines: ["Apte à la reprise au même poste."], facts: [{ at: -18, label: "Visite de reprise : apte au même poste", approved: true }] }] },
@@ -158,6 +161,9 @@ export async function loadDemo(db: any, userId: string, today = todayParis()) {
     if (s.knownAt != null) patch["employer_known_at"] = d(s.knownAt);
     if (s.closedAt != null) { patch["status"] = "CLOSED"; patch["closed_at"] = d(s.closedAt); }
     if (Object.keys(patch).length) await db.from("cases").update(patch).eq("id", caseId);
+    for (const [code, at] of Object.entries(s.done ?? {})) {
+      await db.from("case_deadline_done").insert({ tenant_id: tenantId, case_id: caseId, code, done_on: d(at), done_by: userId });
+    }
     if (s.avis) await db.from("case_avis").insert({ tenant_id: tenantId, case_id: caseId, avis_type: s.avis.type, avis_date: d(s.avis.at), created_by: userId });
 
     for (const doc of s.docs) {
