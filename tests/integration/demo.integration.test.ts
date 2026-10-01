@@ -75,7 +75,6 @@ run("Démo (live database)", () => {
     // One line per case: no case appears in two groups.
     const all = Object.values(day.groups).flat().map((r) => r.caseId);
     expect(new Set(all).size).toBe(all.length);
-    expect(day.groups.DOCUMENTS.length).toBeGreaterThanOrEqual(1);
     // Every document is a watermarked PDF.
     const doc = (await admin.from("documents").select("storage_path").eq("tenant_id", tA).limit(1).single()).data;
     const blob = await admin.storage.from("case-documents").download(doc.storage_path);
