@@ -11,7 +11,7 @@ const SERVICE = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const run = URL && SERVICE ? describe : describe.skip;
 const opts = { auth: { persistSession: false, autoRefreshToken: false } };
 
-run("Plan de retour (live database)", () => {
+run("Plan de retour (live database)", { timeout: 30_000 }, () => {
   const admin = createClient(URL!, SERVICE!, opts) as any;
   const ids: string[] = [];
   let tenant = "", companyId = "", caseId = "", coord = "", employer = "";
