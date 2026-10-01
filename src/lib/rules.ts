@@ -11,12 +11,43 @@ export type Deadline = {
   legalRef: string;
   from: string | null;
   due: string | null;
-  status: "A_VENIR" | "EN_COURS" | "DEPASSEE" | "INFO";
+  /** OBLIGATION: legal duty, the only kind that can be overdue (red). POSSIBILITE: optional step. INFO: informative date (CPAM, contestation window). */
+  kind: DeadlineKind;
+  /** FAIT: marked done; NON_REALISE: optional step whose window closed; ECHUE: informative date passed. */
+  status: "A_VENIR" | "EN_COURS" | "DEPASSEE" | "INFO" | "FAIT" | "NON_REALISE" | "ECHUE";
+  /** Date the obligation was marked done. */
+  doneOn?: string | null;
   /** Every rule is shown "à valider juridiquement" until a lawyer signs off. */
   toValidate: true;
 };
 
 /** Case facts that some rules need. All optional. */
+export type DeadlineKind = "OBLIGATION" | "POSSIBILITE" | "INFO";
+/** Legal obligations (the only deadlines that can be "en retard"). */
+export const OBLIGATION_CODES = ["DECLARATION_AT", "RESERVES_MOTIVEES", "VISITE_REPRISE", "INAPTITUDE_SALARY_RESUMES"] as const;
+export const POSSIBILITY_CODES = ["RDV_LIAISON", "PRE_REPRISE"] as const;
+export const kindOf = (code: string): DeadlineKind =>
+  (OBLIGATION_CODES as readonly string[]).includes(code) ? "OBLIGATION" : (POSSIBILITY_CODES as readonly string[]).includes(code) ? "POSSIBILITE" : "INFO";
+/** Short plain-French names, for one-line reasons. */
+export const SHORT_LABELS: Record<string, string> = {
+  DECLARATION_AT: "Déclaration AT",
+  RESERVES_MOTIVEES: "Réserves de l'employeur",
+  CPAM_DECISION_AT: "Décision CPAM",
+  CPAM_DECISION_MP: "Décision CPAM",
+  RDV_LIAISON: "Rendez-vous de liaison possible",
+  PRE_REPRISE: "Visite de pré-reprise possible",
+  VISITE_REPRISE: "Visite de reprise à organiser",
+  CONTESTATION_AVIS: "Délai de contestation de l'avis",
+  INAPTITUDE_SALARY_RESUMES: "Reprise du salaire (inaptitude)",
+};
+/** Wording of the "Marquer comme fait" confirmation. */
+export const DONE_LABELS: Record<string, string> = {
+  DECLARATION_AT: "Déclaration AT faite le",
+  RESERVES_MOTIVEES: "Réserves envoyées le",
+  VISITE_REPRISE: "Visite de reprise faite le",
+  INAPTITUDE_SALARY_RESUMES: "Reclassement, licenciement ou reprise du salaire le",
+};
+
 export type CaseFacts = {
   /** Date the employer learned of the accident (defaults to the episode start). */
   employerKnownAt?: string | null;
@@ -24,6 +55,8 @@ export type CaseFacts = {
   cpamInvestigation?: boolean;
   /** Latest avis entered by the médecin du travail. */
   avis?: { type: "APTITUDE" | "APTITUDE_AMENAGEMENTS" | "INAPTITUDE"; date: string } | null;
+  /** Obligations marked done: code -> date. */
+  done?: Record<string, string>;
 };
 
 export const LEGAL_CHECK_LABEL = "à valider juridiquement";
@@ -128,7 +161,15 @@ export function computeDeadlines(stoppages: Stoppage[], origin: string | null, t
   const duration = episodeDuration(ep, today);
   const o = origin ?? sorted[0]!.origin;
   const out: Deadline[] = [];
-  const push = (d: Omit<Deadline, "toValidate">) => out.push({ ...d, toValidate: true });
+  const push = (d: Omit<Deadline, "toValidate" | "kind">) => {
+    const kind = kindOf(d.code);
+    const doneOn = facts.done?.[d.code] ?? null;
+    let status = d.status;
+    if (kind === "OBLIGATION" && doneOn) status = "FAIT";
+    else if (kind === "POSSIBILITE" && ((end && today > end) || status === "DEPASSEE")) status = "NON_REALISE";
+    else if (kind === "INFO" && status === "DEPASSEE") status = "ECHUE";
+    out.push({ ...d, kind, status, doneOn, toValidate: true });
+  };
 
   if (o === "AT") {
     const known = facts.employerKnownAt ?? start;
