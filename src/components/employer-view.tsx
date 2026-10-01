@@ -8,7 +8,7 @@ import { Lock, Upload } from "lucide-react";
 import { DeadlineBadge, EmptyState, StatusBadge } from "@/components/kit";
 import { Button } from "@/components/ui/button";
 
-const STATUS: Record<string, string> = { A_VENIR: "À venir", EN_COURS: "En cours", DEPASSEE: "Dépassée", INFO: "Dès la reprise connue" };
+const STATUS: Record<string, string> = { A_VENIR: "À venir", EN_COURS: "En cours", DEPASSEE: "Dépassée", INFO: "Dès la reprise connue", FAIT: "Fait", NON_REALISE: "Non réalisé", ECHUE: "Échue" };
 
 export function EmployerView({ asCompanyId }: { asCompanyId?: string }) {
   const readOnly = !!asCompanyId;
@@ -112,7 +112,7 @@ export function EmployerView({ asCompanyId }: { asCompanyId?: string }) {
                   {c.deadlines.map((d: any) => (
                     <div key={d.code} className="mt-1 flex flex-wrap items-center gap-2">
                       <span>{d.label}</span>
-                      {d.due ? <DeadlineBadge due={d.due} overdue={d.status === "DEPASSEE"} /> : <StatusBadge>{STATUS[d.status]}</StatusBadge>}
+                      {d.due && ["A_VENIR", "EN_COURS", "DEPASSEE"].includes(d.status) ? <DeadlineBadge due={d.due} overdue={d.status === "DEPASSEE" && (d as any).kind === "OBLIGATION"} /> : <StatusBadge tone={d.status === "FAIT" ? "done" : "neutral"}>{STATUS[d.status]}</StatusBadge>}
                     </div>
                   ))}
                 </div>
