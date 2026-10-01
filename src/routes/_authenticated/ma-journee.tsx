@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 import { EmptyState, PriorityIndicator, todayIso } from "@/components/kit";
 import { markDeadlineDoneFn } from "@/lib/deadlines.functions";
 import { DONE_LABELS } from "@/lib/rules";
+import { BookVisitForm } from "@/components/visits";
 
 export const Route = createFileRoute("/_authenticated/ma-journee")({
   head: () => ({
@@ -58,6 +59,7 @@ function MyDay() {
   const ack = useServerFn(acknowledgePlanAlert);
   const markDone = useServerFn(markDeadlineDoneFn);
   const [doneFor, setDoneFor] = useState<string | null>(null);
+  const [bookFor, setBookFor] = useState<string | null>(null);
   const [doneOn, setDoneOn] = useState(todayIso());
   async function submitDone(caseId: string, code: string) {
     try {
@@ -114,7 +116,8 @@ function MyDay() {
 
   async function act(caseId: string, action: keyof typeof ACTION_LABEL) {
     if (action === "FAIT") { setDoneFor(doneFor === caseId ? null : caseId); setDoneOn(todayIso()); return; }
-    if (action === "VALIDER" || action === "PUBLIER" || action === "PLAN" || action === "PLANIFIER_VISITE") return open(caseId);
+    if (action === "PLANIFIER_VISITE") { setBookFor(bookFor === caseId ? null : caseId); return; }
+    if (action === "VALIDER" || action === "PUBLIER" || action === "PLAN") return open(caseId);
     setBusy(caseId);
     try {
       const r = await plan({ data: { caseId } });
@@ -179,7 +182,7 @@ function MyDay() {
                   <button className="truncate font-medium hover:underline" onClick={() => open(r.caseId)}>{r.worker}</button>
                   <p className="truncate text-xs text-muted-foreground">{r.company}{r.origin ? ` · ${ORIGINS[r.origin] ?? r.origin}` : ""}</p>
                 </div>
-                <p className={cn("min-w-48 flex-1 truncate text-sm", g.key === "EN_RETARD" && "text-destructive")} title={r.detail ?? r.reason}>{r.reason}</p>
+                <p className={cn("min-w-48 flex-1 truncate text-sm", g.key === "EN_RETARD" && "text-destructive")} title={r.detail ?? r.reason}>{r.reason}{r.others.length > 0 && <span className="ml-2 cursor-help rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground" title={r.others.join("\n")}>+{r.others.length} autre{r.others.length > 1 ? "s" : ""}</span>}</p>
                 <div className="w-40" title={r.topFactors.map((f) => `+${f.points} ${f.libelle}`).join("\n")}><PriorityIndicator score={r.score} factor={r.topFactors[0]?.libelle ?? null} /></div>
                 <div className="flex gap-2">
                   <Button size="sm" disabled={busy === r.caseId} onClick={(e) => { e.stopPropagation(); act(r.caseId, r.action); }}>{ACTION_LABEL[r.action]}</Button>
@@ -191,6 +194,9 @@ function MyDay() {
                     <input type="date" required max={todayIso()} value={doneOn} onChange={(e) => setDoneOn(e.target.value)} className="rounded-md border border-input bg-background px-2 py-1 text-sm" />
                     <Button size="sm" type="submit">Enregistrer</Button>
                   </form>
+                )}
+                {bookFor === r.caseId && (
+                  <BookVisitForm caseId={r.caseId} code={r.deadlineCode} onCancel={() => setBookFor(null)} onDone={() => { setBookFor(null); qc.invalidateQueries({ queryKey: ["my-day"] }); }} />
                 )}
                 {ackFor === r.caseId && r.alertTaskIds && (
                   <form className="flex w-full gap-2" onSubmit={(e) => { e.preventDefault(); submitAck(r.alertTaskIds!); }}>

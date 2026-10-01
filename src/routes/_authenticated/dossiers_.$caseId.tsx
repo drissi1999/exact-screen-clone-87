@@ -1,3 +1,4 @@
+import { CaseVisits } from "@/components/visits";
 import { UPLOAD_ACCEPT } from "@/lib/file-signature";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -231,6 +232,8 @@ function CasePage() {
           <ReturnPlanTab caseId={caseId} documents={data.documents} onUpload={uploadForPlan} canEdit={!!me?.roles.some((r) => ["PDP_COORDINATOR", "IDEST", "MEDECIN_TRAVAIL"].includes(r))} />
         </section>
       )}
+
+      <CaseVisits caseId={caseId} canBook={isStaffEditor} canPrepare={!!me?.roles.some((r) => ["IDEST", "MEDECIN_TRAVAIL"].includes(r))} onChange={refresh} />
 
       <section className="space-y-3">
         <h2 className="text-sm font-semibold text-muted-foreground">Prochaines étapes <span className="font-normal">· {steps.length}</span></h2>
