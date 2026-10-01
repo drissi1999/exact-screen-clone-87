@@ -117,6 +117,14 @@ export function EmployerView({ asCompanyId }: { asCompanyId?: string }) {
                   ))}
                 </div>
               )}
+              {c.visits?.length > 0 && (
+                <div>
+                  <p className="text-xs text-muted-foreground">Rendez-vous</p>
+                  {c.visits.map((v: any, i: number) => (
+                    <p key={i} className="mt-1">{v.label} · {new Date(v.at).toLocaleString("fr-FR", { timeZone: "Europe/Paris", dateStyle: "long", timeStyle: "short" })}</p>
+                  ))}
+                </div>
+              )}
             </div>
             {c.letters.map((l: any) => (
               <div key={l.id} className="rounded-md border border-border p-3 text-sm">
