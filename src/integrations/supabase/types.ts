@@ -210,6 +210,51 @@ export type Database = {
           },
         ]
       }
+      case_deadline_done: {
+        Row: {
+          case_id: string
+          code: string
+          created_at: string
+          done_by: string
+          done_on: string
+          id: string
+          tenant_id: string
+        }
+        Insert: {
+          case_id: string
+          code: string
+          created_at?: string
+          done_by: string
+          done_on: string
+          id?: string
+          tenant_id: string
+        }
+        Update: {
+          case_id?: string
+          code?: string
+          created_at?: string
+          done_by?: string
+          done_on?: string
+          id?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "case_deadline_done_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "cases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "case_deadline_done_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       case_events: {
         Row: {
           case_id: string
@@ -486,6 +531,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      demo_requests: {
+        Row: {
+          created_at: string
+          email: string
+          full_name: string
+          id: string
+          message: string | null
+          organisation: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          full_name: string
+          id?: string
+          message?: string | null
+          organisation: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          full_name?: string
+          id?: string
+          message?: string | null
+          organisation?: string
+        }
+        Relationships: []
       }
       documents: {
         Row: {
