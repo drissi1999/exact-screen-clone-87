@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { getStats } from "@/lib/imports.functions";
-import { loadDemoData, resetDemoData } from "@/lib/demo.functions";
+import { restartDemoData } from "@/lib/demo.functions";
 import { getMe } from "@/lib/cases.functions";
 import { Button } from "@/components/ui/button";
 
@@ -24,26 +24,19 @@ export const Route = createFileRoute("/_authenticated/tableau-de-bord")({
 
 function Dashboard() {
   const fetchStats = useServerFn(getStats);
-  const load = useServerFn(loadDemoData);
-  const reset = useServerFn(resetDemoData);
+  const restart = useServerFn(restartDemoData);
   const fetchMe = useServerFn(getMe);
   const queryClient = useQueryClient();
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const [confirmText, setConfirmText] = useState("");
 
   const { data, isLoading } = useQuery({ queryKey: ["stats"], queryFn: () => fetchStats() });
   const { data: me } = useQuery({ queryKey: ["me"], queryFn: () => fetchMe() });
   const isAdmin = !!me?.roles.includes("SPSTI_ADMIN");
 
-  const loadMutation = useMutation({
-    mutationFn: () => load(),
-    onSuccess: (r) => { toast.success(`Démo chargée : ${r.situations} situations fictives, ${r.cases} dossiers.`); queryClient.invalidateQueries(); },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Chargement impossible"),
-  });
-  const resetMutation = useMutation({
-    mutationFn: () => reset({ data: { confirmation: confirmText } }),
-    onSuccess: (r) => { toast.success(`Démo réinitialisée : ${r.cases} dossiers et ${r.workers} salariés supprimés.`); setConfirmOpen(false); setConfirmText(""); queryClient.invalidateQueries(); },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Réinitialisation impossible"),
+  const restartMutation = useMutation({
+    mutationFn: () => restart(),
+    onSuccess: (r) => { toast.success(`Démo remise à zéro : ${r.situations} situations fictives, ${r.cases} dossiers.`); setConfirmOpen(false); queryClient.invalidateQueries(); },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Remise à zéro impossible"),
   });
 
   const cards = [
@@ -62,12 +55,9 @@ function Dashboard() {
         </div>
         <div className="flex gap-2">
           {isAdmin && (
-            <>
-              <Button variant="outline" onClick={() => setConfirmOpen((o) => !o)}>Réinitialiser la démo</Button>
-              <Button variant="secondary" onClick={() => loadMutation.mutate()} disabled={loadMutation.isPending}>
-                {loadMutation.isPending ? "Chargement…" : "Charger les 12 situations de démo"}
-              </Button>
-            </>
+            <Button variant="secondary" onClick={() => setConfirmOpen((o) => !o)} disabled={restartMutation.isPending}>
+              {restartMutation.isPending ? "Remise à zéro…" : "Remettre la démo à zéro"}
+            </Button>
           )}
           <Button asChild>
             <Link to="/parametres/imports">Importer un fichier</Link>
@@ -76,14 +66,14 @@ function Dashboard() {
       </div>
 
       {confirmOpen && isAdmin && (
-        <form className="panel space-y-3 border-destructive p-5" onSubmit={(e) => { e.preventDefault(); resetMutation.mutate(); }}>
-          <p className="font-medium">Réinitialiser la démo de votre SPSTI</p>
-          <p className="text-sm text-muted-foreground">Supprime tous les dossiers, salariés, entreprises, arrêts, documents, faits, brouillons, plans, tâches, messages et journaux de dossiers de votre service. Les comptes utilisateurs, les rôles et les autres SPSTI ne sont jamais touchés. L'action est journalisée.</p>
-          <div className="flex flex-wrap gap-2">
-            <input value={confirmText} onChange={(e) => setConfirmText(e.target.value)} placeholder="Tapez RÉINITIALISER" aria-label="Confirmation" className="rounded-md border border-input bg-background px-2 py-1.5 text-sm" />
-            <Button type="submit" variant="destructive" disabled={confirmText !== "RÉINITIALISER" || resetMutation.isPending}>{resetMutation.isPending ? "Suppression…" : "Tout supprimer"}</Button>
+        <div className="panel space-y-3 border-destructive p-5">
+          <p className="font-medium">Remettre la démo à zéro</p>
+          <p className="text-sm text-muted-foreground">Supprime tous les dossiers, salariés, arrêts, documents, faits, brouillons, plans, visites, tâches et messages de votre service, puis recharge les 12 situations fictives datées d'aujourd'hui. Les comptes utilisateurs, les rôles et les autres SPSTI ne sont jamais touchés. L'action est journalisée.</p>
+          <div className="flex gap-2">
+            <Button variant="destructive" onClick={() => restartMutation.mutate()} disabled={restartMutation.isPending}>{restartMutation.isPending ? "Remise à zéro… (environ 30 s)" : "Confirmer"}</Button>
+            <Button variant="ghost" onClick={() => setConfirmOpen(false)} disabled={restartMutation.isPending}>Annuler</Button>
           </div>
-        </form>
+        </div>
       )}
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
