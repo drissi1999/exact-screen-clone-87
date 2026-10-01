@@ -8,7 +8,9 @@ import { planCoordination } from "@/lib/cases.functions";
 import { acknowledgePlanAlert } from "@/lib/return-plan.functions";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { DeadlineBadge, EmptyState, PriorityIndicator } from "@/components/kit";
+import { EmptyState, PriorityIndicator, todayIso } from "@/components/kit";
+import { markDeadlineDoneFn } from "@/lib/deadlines.functions";
+import { DONE_LABELS } from "@/lib/rules";
 
 export const Route = createFileRoute("/_authenticated/ma-journee")({
   head: () => ({
@@ -28,13 +30,19 @@ const GROUPS = [
   ["PLAN_ALERTES", "Alertes suivi de reprise"],
   ["EN_RETARD", "En retard"],
   ["AUJOURDHUI", "Aujourd'hui"],
+  ["PLAN_TACHES", "Plan de retour"],
   ["SEMAINE", "Cette semaine"],
-  ["NOUVEAUX", "Nouveaux dossiers"],
   ["DOCUMENTS", "Documents à valider"],
   ["REPONSES", "Réponses reçues"],
-  ["PLAN_TACHES", "Tâches du plan de retour"],
+  ["NOUVEAUX", "Nouveaux dossiers"],
 ] as const;
-const ACTION_LABEL = { RDV_LIAISON: "Planifier le RDV de liaison", VALIDER: "Valider la chronologie", RELANCER: "Relancer", PUBLIER: "Publier", PLAN: "Ouvrir le plan de retour" } as const;
+const COUNTERS = [
+  { label: "En retard", keys: ["EN_RETARD"], red: true },
+  { label: "Aujourd'hui", keys: ["AUJOURDHUI", "PLAN_TACHES"], red: false },
+  { label: "Cette semaine", keys: ["SEMAINE"], red: false },
+  { label: "Alertes", keys: ["PLAN_ALERTES"], red: true },
+] as const;
+const ACTION_LABEL = { RDV_LIAISON: "Planifier le RDV de liaison", PLANIFIER_VISITE: "Planifier la visite", FAIT: "Marquer comme fait", VALIDER: "Valider la chronologie", RELANCER: "Relancer", PUBLIER: "Publier", PLAN: "Ouvrir le plan de retour" } as const;
 const ORIGINS: Record<string, string> = { MALADIE: "Maladie", AT: "Accident du travail", MP: "Maladie professionnelle" };
 
 function MyDay() {
@@ -48,6 +56,17 @@ function MyDay() {
   const [cursor, setCursor] = useState(0);
   const [busy, setBusy] = useState<string | null>(null);
   const ack = useServerFn(acknowledgePlanAlert);
+  const markDone = useServerFn(markDeadlineDoneFn);
+  const [doneFor, setDoneFor] = useState<string | null>(null);
+  const [doneOn, setDoneOn] = useState(todayIso());
+  async function submitDone(caseId: string, code: string) {
+    try {
+      await markDone({ data: { caseId, code, doneOn } });
+      toast.success("Marqué comme fait");
+      setDoneFor(null);
+      qc.invalidateQueries({ queryKey: ["my-day"] });
+    } catch (e) { toast.error(e instanceof Error ? e.message : "Erreur"); }
+  }
   const [ackFor, setAckFor] = useState<string | null>(null);
   const [ackNote, setAckNote] = useState("");
   async function submitAck(ids: string[]) {
@@ -94,7 +113,8 @@ function MyDay() {
   useEffect(() => { document.querySelector(`[data-row="${cursor}"]`)?.scrollIntoView({ block: "nearest" }); }, [cursor]);
 
   async function act(caseId: string, action: keyof typeof ACTION_LABEL) {
-    if (action === "VALIDER" || action === "PUBLIER" || action === "PLAN") return open(caseId);
+    if (action === "FAIT") { setDoneFor(doneFor === caseId ? null : caseId); setDoneOn(todayIso()); return; }
+    if (action === "VALIDER" || action === "PUBLIER" || action === "PLAN" || action === "PLANIFIER_VISITE") return open(caseId);
     setBusy(caseId);
     try {
       const r = await plan({ data: { caseId } });
@@ -134,12 +154,15 @@ function MyDay() {
       </div>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {filtered.map((g) => (
-          <a key={g.key} href={`#${g.key}`} className="panel p-4 transition-colors hover:border-primary/40">
-            <p className={cn("text-2xl font-semibold", (g.key === "EN_RETARD" || g.key === "PLAN_ALERTES") && g.rows.length > 0 && "text-destructive")}>{g.rows.length}</p>
-            <p className="mt-1 text-xs text-muted-foreground">{g.label}</p>
-          </a>
-        ))}
+        {COUNTERS.map((c) => {
+          const n = filtered.filter((g) => (c.keys as readonly string[]).includes(g.key)).reduce((s, g) => s + g.rows.length, 0);
+          return (
+            <a key={c.label} href={`#${c.keys[0]}`} className="panel p-4 transition-colors hover:border-primary/40">
+              <p className={cn("text-2xl font-semibold", c.red && n > 0 && "text-destructive")}>{n}</p>
+              <p className="mt-1 text-xs text-muted-foreground">{c.label}</p>
+            </a>
+          );
+        })}
       </div>
 
       {filtered.every((g) => g.rows.length === 0) && <EmptyState text="Rien à traiter pour ces filtres." action={<Button size="sm" variant="outline" onClick={() => { setCompany(""); setOrigin(""); }}>Effacer les filtres</Button>} />}
@@ -151,23 +174,24 @@ function MyDay() {
             const i = idx;
             return (
               <div key={`${g.key}-${r.caseId}`} data-row={i} onClick={() => setCursor(i)}
-                className={cn("panel flex flex-wrap items-center gap-6 px-5 py-4", cursor === i && "ring-2 ring-primary")}>
-                <div className="min-w-48 flex-1">
-                  <button className="font-medium hover:underline" onClick={() => open(r.caseId)}>{r.worker}</button>
-                  <p className="text-sm text-muted-foreground">{r.company}{r.origin ? ` · ${ORIGINS[r.origin] ?? r.origin}` : ""}</p>
-                  <p className="line-clamp-2 text-sm" title={r.reason}>{r.reason}</p>
+                className={cn("panel flex flex-wrap items-center gap-4 px-4 py-3", cursor === i && "ring-2 ring-primary")}>
+                <div className="w-56 min-w-0">
+                  <button className="truncate font-medium hover:underline" onClick={() => open(r.caseId)}>{r.worker}</button>
+                  <p className="truncate text-xs text-muted-foreground">{r.company}{r.origin ? ` · ${ORIGINS[r.origin] ?? r.origin}` : ""}</p>
                 </div>
-                <div className="w-48 text-sm">
-                  {r.nextDeadline ? <><p className="truncate">{r.nextDeadline.label}</p><div className="mt-1"><DeadlineBadge due={r.nextDeadline.due} /></div><p className="mt-1 text-xs text-muted-foreground">à valider juridiquement</p></> : <p className="text-muted-foreground">Aucune échéance</p>}
-                </div>
-                <div className="w-56 text-sm">
-                  <PriorityIndicator score={r.score} />
-                  {r.topFactors.map((f) => <p key={f.libelle} className="mt-1 text-xs text-muted-foreground">+{f.points} {f.libelle}</p>)}
-                </div>
-                <div className="flex flex-col gap-2">
-                  <Button size="sm" disabled={busy === r.caseId} onClick={() => act(r.caseId, r.action)}>{ACTION_LABEL[r.action]}</Button>
+                <p className={cn("min-w-48 flex-1 truncate text-sm", g.key === "EN_RETARD" && "text-destructive")} title={r.detail ?? r.reason}>{r.reason}</p>
+                <div className="w-40" title={r.topFactors.map((f) => `+${f.points} ${f.libelle}`).join("\n")}><PriorityIndicator score={r.score} factor={r.topFactors[0]?.libelle} /></div>
+                <div className="flex gap-2">
+                  <Button size="sm" disabled={busy === r.caseId} onClick={(e) => { e.stopPropagation(); act(r.caseId, r.action); }}>{ACTION_LABEL[r.action]}</Button>
                   {r.alertTaskIds?.length ? <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); setAckFor(ackFor === r.caseId ? null : r.caseId); setAckNote(""); }}>Pris en charge</Button> : null}
                 </div>
+                {doneFor === r.caseId && r.deadlineCode && (
+                  <form className="flex w-full items-center gap-2" onSubmit={(e) => { e.preventDefault(); submitDone(r.caseId, r.deadlineCode!); }}>
+                    <label className="text-sm">{DONE_LABELS[r.deadlineCode] ?? "Fait le"}</label>
+                    <input type="date" required max={todayIso()} value={doneOn} onChange={(e) => setDoneOn(e.target.value)} className="rounded-md border border-input bg-background px-2 py-1 text-sm" />
+                    <Button size="sm" type="submit">Enregistrer</Button>
+                  </form>
+                )}
                 {ackFor === r.caseId && r.alertTaskIds && (
                   <form className="flex w-full gap-2" onSubmit={(e) => { e.preventDefault(); submitAck(r.alertTaskIds!); }}>
                     <input autoFocus required minLength={3} maxLength={1000} value={ackNote} onChange={(e) => setAckNote(e.target.value)}
