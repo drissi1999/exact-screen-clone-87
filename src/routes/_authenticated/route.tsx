@@ -22,6 +22,7 @@ const ADMIN_ITEMS = [
   { to: "/messages", label: "Messages simulés" },
   { to: "/parametres/equipe", label: "Équipe" },
   { to: "/apercu", label: "Voir en tant que" },
+  { to: "/parametres/demandes-demo", label: "Demandes de démo" },
 ] as const;
 
 /** Primary navigation by role; everything else lives under "Administration". */

@@ -4,15 +4,17 @@ import type { CaseFacts } from "./rules";
 export async function loadCaseFacts(db: any, caseIds: string[]): Promise<Map<string, CaseFacts>> {
   const out = new Map<string, CaseFacts>();
   if (!caseIds.length) return out;
-  const [{ data: cases }, { data: avis }] = await Promise.all([
+  const [{ data: cases }, { data: avis }, { data: done }] = await Promise.all([
     db.from("cases").select("id, employer_known_at, cpam_investigation").in("id", caseIds),
     db.from("case_avis").select("case_id, avis_type, avis_date, created_at").in("case_id", caseIds).order("avis_date", { ascending: false }).order("created_at", { ascending: false }),
+    db.from("case_deadline_done").select("case_id, code, done_on").in("case_id", caseIds),
   ]);
-  for (const c of cases ?? []) out.set(c.id, { employerKnownAt: c.employer_known_at, cpamInvestigation: !!c.cpam_investigation, avis: null });
+  for (const c of cases ?? []) out.set(c.id, { employerKnownAt: c.employer_known_at, cpamInvestigation: !!c.cpam_investigation, avis: null, done: {} });
   for (const a of avis ?? []) {
     const f = out.get(a.case_id);
     if (f && !f.avis) f.avis = { type: a.avis_type, date: a.avis_date };
   }
+  for (const d of done ?? []) { const f = out.get(d.case_id); if (f) f.done![d.code] = d.done_on; }
   return out;
 }
 

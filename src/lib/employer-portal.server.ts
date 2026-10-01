@@ -38,7 +38,7 @@ export async function buildEmployerPortal(db: any, tenantId: string, companyId: 
           periods: stops.map((s: any) => ({ start: s.start_date as string, end: (s.end_date ?? null) as string | null })),
           deadlines: computeDeadlines(stops, c.origin, undefined, facts.get(c.id))
             .filter((d) => EMPLOYER_DEADLINES.has(d.code))
-            .map((d) => ({ code: d.code, label: d.label, legalRef: d.legalRef, due: d.due, status: d.status, toValidate: true as const })),
+            .map((d) => ({ code: d.code, label: d.label, legalRef: d.legalRef, due: d.due, status: d.status, kind: d.kind, toValidate: true as const })),
           documents: (docs.data ?? []).filter((d: any) => d.case_id === c.id && visibleInPortal(d, "EMPLOYER")).map((d: any) => ({ id: d.id as string, title: genericDocTitle(d.doc_type), createdAt: d.created_at as string })),
           letters: (drafts.data ?? []).filter((d: any) => d.case_id === c.id).map((d: any) => ({ id: d.id as string, text: d.approved_text as string, approvedAt: d.approved_at as string })),
           planTasks: planTasks.filter((t) => t.caseId === c.id).map(({ caseId: _c, ...t }) => t),

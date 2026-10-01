@@ -182,3 +182,42 @@ it("every rule is flagged 'à valider juridiquement'", () => {
   expect(all.length).toBeGreaterThanOrEqual(8);
   expect(all.every((d) => d.toValidate === true)).toBe(true);
 });
+
+describe("obligations vs possibilities", () => {
+  const ended = [s("2026-01-01", "2026-03-31", "MALADIE", "INITIAL")];
+  it("optional steps become 'Non réalisé' once the episode has ended, never overdue", () => {
+    for (const code of ["RDV_LIAISON", "PRE_REPRISE"]) {
+      const d = get(ended, "MALADIE", code)!;
+      expect(d.kind).toBe("POSSIBILITE");
+      expect(d.status).toBe("NON_REALISE");
+    }
+  });
+  it("only legal obligations can be overdue; informative dates become 'Échue'", () => {
+    const all = computeDeadlines([s("2026-01-01", "2026-03-31", "AT", "INITIAL")], "AT", "2026-09-01", { avis: { type: "INAPTITUDE", date: "2026-04-01" } });
+    for (const d of all) if (d.status === "DEPASSEE") expect(d.kind).toBe("OBLIGATION");
+    expect(all.find((d) => d.code === "CPAM_DECISION_AT")!.status).toBe("ECHUE");
+    expect(all.find((d) => d.code === "CONTESTATION_AVIS")!.status).toBe("ECHUE");
+    expect(all.find((d) => d.code === "DECLARATION_AT")!.status).toBe("DEPASSEE");
+  });
+});
+
+describe("applicable rules only, and 'Marquer comme fait'", () => {
+  it("no avis: no contestation nor salary rule; aptitude avis: contestation only", () => {
+    const st = [s("2026-01-01", "2026-03-31", "MALADIE", "INITIAL")];
+    expect(codes(st, "MALADIE")).not.toContain("CONTESTATION_AVIS");
+    expect(codes(st, "MALADIE")).not.toContain("INAPTITUDE_SALARY_RESUMES");
+    const withAvis = computeDeadlines(st, "MALADIE", "2026-06-01", { avis: { type: "APTITUDE", date: "2026-04-01" } }).map((d) => d.code);
+    expect(withAvis).toContain("CONTESTATION_AVIS");
+    expect(withAvis).not.toContain("INAPTITUDE_SALARY_RESUMES");
+  });
+  it("CPAM rules only for AT/MP", () => {
+    const st = [s("2026-01-01", "2026-03-31", "MALADIE", "INITIAL")];
+    expect(codes(st, "MALADIE").some((c) => c.startsWith("CPAM"))).toBe(false);
+  });
+  it("an obligation marked done turns FAIT with its date, and is no longer overdue", () => {
+    const st = [s("2026-01-01", "2026-03-31", "AT", "INITIAL")];
+    const d = computeDeadlines(st, "AT", "2026-09-01", { done: { DECLARATION_AT: "2026-01-02" } }).find((x) => x.code === "DECLARATION_AT")!;
+    expect(d.status).toBe("FAIT");
+    expect(d.doneOn).toBe("2026-01-02");
+  });
+});
