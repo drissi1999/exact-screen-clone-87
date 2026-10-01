@@ -72,7 +72,9 @@ run("Démo (live database)", () => {
     expect(day.groups.AUJOURDHUI.length + day.groups.PLAN_TACHES.length).toBeGreaterThanOrEqual(1);
     expect(day.groups.SEMAINE.length).toBeGreaterThanOrEqual(2);
     expect(day.groups.PLAN_ALERTES).toHaveLength(1);
-    expect(day.groups.NOUVEAUX.length).toBeGreaterThanOrEqual(1);
+    // One line per case: no case appears in two groups.
+    const all = Object.values(day.groups).flat().map((r) => r.caseId);
+    expect(new Set(all).size).toBe(all.length);
     expect(day.groups.DOCUMENTS.length).toBeGreaterThanOrEqual(1);
     // Every document is a watermarked PDF.
     const doc = (await admin.from("documents").select("storage_path").eq("tenant_id", tA).limit(1).single()).data;

@@ -91,8 +91,8 @@ run("Plan de retour (live database)", () => {
     const day = await buildMyDay(admin, coord, "2026-10-02");
     const row = day.groups.PLAN_ALERTES.find((r) => r.caseId === caseId);
     expect(row?.reason).toContain("rechute");
-    // The J+30 follow-up (due 01/10) is overdue on 02/10.
-    expect(day.groups.PLAN_TACHES.some((r) => r.caseId === caseId)).toBe(true);
+    // One line per case: the alert takes precedence over the overdue J+30 follow-up of the same case.
+    expect(day.groups.PLAN_TACHES.some((r) => r.caseId === caseId)).toBe(false);
   });
 
   it("'Pris en charge' needs a note, is logged and removes the alert; a new bad outcome creates a new alert", async () => {
