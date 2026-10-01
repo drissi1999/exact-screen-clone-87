@@ -1,5 +1,5 @@
 /** "Ma journée": worklist for IDEST / coordinators. `db` is the service-role client; every query is tenant-filtered. */
-import { computeDeadlines, todayParis, type Deadline, type Stoppage } from "./rules";
+import { computeDeadlines, todayParis, SHORT_LABELS, type Deadline, type Stoppage } from "./rules";
 import { computeRisk, type RiskResult } from "./risk";
 import { loadCaseFacts } from "./case-facts.server";
 import { myDayPlanItems } from "./return-plan.server";
@@ -9,10 +9,12 @@ export const STAFF_ROLES = ["MEDECIN_TRAVAIL", "IDEST", "PDP_COORDINATOR", "SPST
 export const RISK_TABLES = ["cases", "work_stoppages", "workers", "companies", "case_avis", "coordination_tasks"] as const;
 
 export type MyDayGroup = "EN_RETARD" | "AUJOURDHUI" | "SEMAINE" | "NOUVEAUX" | "DOCUMENTS" | "REPONSES" | "PLAN_TACHES" | "PLAN_ALERTES";
-export type MyDayAction = "RDV_LIAISON" | "VALIDER" | "RELANCER" | "PUBLIER" | "PLAN";
+export type MyDayAction = "RDV_LIAISON" | "PLANIFIER_VISITE" | "FAIT" | "VALIDER" | "RELANCER" | "PUBLIER" | "PLAN";
+/** Display order; each case appears once, in the first group that applies. */
+export const GROUP_PRIORITY: MyDayGroup[] = ["PLAN_ALERTES", "EN_RETARD", "AUJOURDHUI", "PLAN_TACHES", "SEMAINE", "DOCUMENTS", "REPONSES", "NOUVEAUX"];
 export type MyDayRow = {
   caseId: string; worker: string; company: string; companyId: string; origin: string | null;
-  reason: string; nextDeadline: { label: string; due: string } | null;
+  reason: string; detail?: string; deadlineCode?: string; nextDeadline: { label: string; due: string } | null;
   score: number; topFactors: { libelle: string; points: number }[]; action: MyDayAction;
   alertTaskIds?: string[];
 };
@@ -88,34 +90,45 @@ export async function buildMyDay(db: any, userId: string, today = todayParis()) 
   const groups: Record<MyDayGroup, MyDayRow[]> = { EN_RETARD: [], AUJOURDHUI: [], SEMAINE: [], NOUVEAUX: [], DOCUMENTS: [], REPONSES: [], PLAN_TACHES: [], PLAN_ALERTES: [] };
   const week = addDays(today, 7);
 
+  const days = (d: string) => Math.round((Date.parse(`${d}T12:00:00Z`) - Date.parse(`${today}T12:00:00Z`)) / 86_400_000);
+  const rel = (d: string) => { const n = days(d); return n < 0 ? `en retard de ${-n} jour${n < -1 ? "s" : ""}` : n === 0 ? "aujourd'hui" : n === 1 ? "demain" : `dans ${n} jours`; };
+  const short = (d: Deadline) => SHORT_LABELS[d.code] ?? d.label;
+  const actionFor = (d: Deadline): MyDayAction =>
+    d.code === "RDV_LIAISON" ? "RDV_LIAISON" : d.code === "PRE_REPRISE" || d.code === "VISITE_REPRISE" ? "PLANIFIER_VISITE" : d.kind === "OBLIGATION" ? "FAIT" : "RELANCER";
+  const fromDeadline = (d: Deadline) => ({ reason: `${short(d)} · ${rel(d.due!)}`, detail: `${d.label} — ${d.legalRef} (à valider juridiquement)`, deadlineCode: d.code, action: actionFor(d) });
+
   for (const c of cases ?? []) {
-    const dl: Deadline[] = computeDeadlines((st.data ?? []).filter((s: any) => s.case_id === c.id), c.origin, today, facts.get(c.id)).filter((d) => d.due && d.status !== "INFO");
+    // Only active items: done obligations, closed optional windows and passed informative dates are excluded.
+    const dl: Deadline[] = computeDeadlines((st.data ?? []).filter((s: any) => s.case_id === c.id), c.origin, today, facts.get(c.id))
+      .filter((d) => d.due && (d.status === "A_VENIR" || d.status === "EN_COURS" || d.status === "DEPASSEE"));
     const upcoming = [...dl].sort((a, b) => a.due!.localeCompare(b.due!));
     const next = upcoming.find((d) => d.status !== "DEPASSEE") ?? upcoming[0] ?? null;
     const risk = scores.get(c.id) ?? { score: 0, factors: [] };
     const base = {
       caseId: c.id as string, worker: `${c.workers?.last_name ?? ""} ${c.workers?.first_name ?? ""}`.trim(), company: (c.companies?.name ?? "") as string,
       companyId: c.company_id as string, origin: (c.origin ?? null) as string | null,
-      nextDeadline: next ? { label: next.label, due: next.due! } : null,
+      nextDeadline: next ? { label: short(next), due: next.due! } : null,
       score: risk.score, topFactors: risk.factors.slice(0, 2).map((f) => ({ libelle: f.libelle, points: f.points })),
     };
-    const deadlineAction = (d: Deadline): MyDayAction => (d.code === "RDV_LIAISON" ? "RDV_LIAISON" : "RELANCER");
-    const overdue = dl.filter((d) => d.status === "DEPASSEE");
-    if (overdue.length) groups.EN_RETARD.push({ ...base, reason: `En retard : ${overdue.map((d) => d.label).join(", ")}`, action: deadlineAction(overdue[0]!) });
-    const todayD = dl.find((d) => d.status !== "DEPASSEE" && d.due === today);
-    if (todayD) groups.AUJOURDHUI.push({ ...base, reason: `Échéance aujourd'hui : ${todayD.label}`, action: deadlineAction(todayD) });
-    const weekD = dl.find((d) => d.status !== "DEPASSEE" && d.due! > today && d.due! <= week);
-    if (weekD) groups.SEMAINE.push({ ...base, reason: `Échéance le ${weekD.due} : ${weekD.label}`, action: deadlineAction(weekD) });
-    if (String(c.opened_at) >= weekAgo) groups.NOUVEAUX.push({ ...base, reason: `Nouveau dossier (ouvert le ${c.opened_at})`, action: "RDV_LIAISON" });
-    const dm = docMap.get(c.id);
-    if (dm?.draft_facts) groups.DOCUMENTS.push({ ...base, reason: `${dm.draft_facts} fait(s) à valider`, action: "VALIDER" });
-    else if (dm?.publishable) groups.DOCUMENTS.push({ ...base, reason: `${dm.publishable} document(s) prêt(s) à publier`, action: "PUBLIER" });
-    const rep = (replies.data ?? []).filter((r: any) => r.case_id === c.id);
-    if (rep.length) groups.REPONSES.push({ ...base, reason: `${rep.length} document(s) reçu(s) ${rep.some((r: any) => r.source === "EMPLOYER") ? "de l'employeur" : "du salarié"}`, action: "VALIDER" });
-    const pd = plan.due.filter((t: any) => t.case_id === c.id);
-    if (pd.length) groups.PLAN_TACHES.push({ ...base, reason: `Plan de retour : ${pd.map((t: any) => `${t.title} (${t.due_date < today ? "en retard" : "aujourd'hui"})`).join(", ")}`, action: "PLAN" });
+    const pick = (g: MyDayGroup, row: Omit<MyDayRow, keyof typeof base>) => { if (!placed) { groups[g].push({ ...base, ...row }); placed = true; } };
+    let placed = false;
     const pa = plan.alerts.filter((t: any) => t.case_id === c.id);
-    if (pa.length) groups.PLAN_ALERTES.push({ ...base, reason: `Alerte suivi : ${pa.map((t: any) => `${t.title} — ${t.outcome === "RECHUTE" ? "rechute" : "difficultés"}`).join(", ")}`, action: "PLAN", alertTaskIds: pa.map((t: any) => t.id as string) });
+    if (pa.length) pick("PLAN_ALERTES", { reason: `Suivi de reprise · ${pa[0].outcome === "RECHUTE" ? "rechute signalée" : "difficultés signalées"}`, detail: pa.map((t: any) => t.title).join(", "), action: "PLAN", alertTaskIds: pa.map((t: any) => t.id as string) });
+    // Only legal obligations can be overdue.
+    const overdue = upcoming.filter((d) => d.status === "DEPASSEE" && d.kind === "OBLIGATION");
+    if (overdue.length) pick("EN_RETARD", fromDeadline(overdue[0]!));
+    const todayD = upcoming.find((d) => d.status !== "DEPASSEE" && d.due === today);
+    if (todayD) pick("AUJOURDHUI", fromDeadline(todayD));
+    const pd = plan.due.filter((t: any) => t.case_id === c.id);
+    if (pd.length) pick("PLAN_TACHES", { reason: `${pd[0].title} · ${rel(pd[0].due_date)}`, detail: pd.map((t: any) => t.title).join(", "), action: "PLAN" });
+    const weekD = upcoming.find((d) => d.status !== "DEPASSEE" && d.due! > today && d.due! <= week);
+    if (weekD) pick("SEMAINE", fromDeadline(weekD));
+    const dm = docMap.get(c.id);
+    if (dm?.draft_facts) pick("DOCUMENTS", { reason: `${dm.draft_facts} fait${dm.draft_facts > 1 ? "s" : ""} à valider dans la chronologie`, action: "VALIDER" });
+    else if (dm?.publishable) pick("DOCUMENTS", { reason: `${dm.publishable} document${dm.publishable > 1 ? "s" : ""} prêt${dm.publishable > 1 ? "s" : ""} à publier`, action: "PUBLIER" });
+    const rep = (replies.data ?? []).filter((r: any) => r.case_id === c.id);
+    if (rep.length) pick("REPONSES", { reason: `Document reçu ${rep.some((r: any) => r.source === "EMPLOYER") ? "de l'employeur" : "du salarié"}`, action: "VALIDER" });
+    if (String(c.opened_at) >= weekAgo) pick("NOUVEAUX", { reason: `Nouveau dossier · ouvert ${rel(String(c.opened_at)).replace("en retard de", "il y a")}`, action: "RDV_LIAISON" });
   }
   for (const g of Object.values(groups)) g.sort((a, b) => b.score - a.score);
   const todo = new Set([...groups.EN_RETARD, ...groups.AUJOURDHUI, ...groups.NOUVEAUX, ...groups.DOCUMENTS, ...groups.REPONSES, ...groups.PLAN_TACHES, ...groups.PLAN_ALERTES].map((r) => r.caseId));
@@ -140,8 +153,8 @@ export async function buildAgenda(db: any, userId: string, today = todayParis(),
   for (const c of cases ?? []) {
     const base = { caseId: c.id as string, worker: `${c.workers?.last_name ?? ""} ${c.workers?.first_name ?? ""}`.trim(), company: (c.companies?.name ?? "") as string };
     for (const d of computeDeadlines((st.data ?? []).filter((s: any) => s.case_id === c.id), c.origin, today, facts.get(c.id))) {
-      if (!d.due || d.status === "INFO" || d.due > until) continue;
-      items.push({ ...base, date: d.due, label: d.label, kind: "ECHEANCE", code: d.code, visit: VISIT_CODES.has(d.code), overdue: d.status === "DEPASSEE" });
+      if (!d.due || d.due > until || !["A_VENIR", "EN_COURS", "DEPASSEE"].includes(d.status)) continue;
+      items.push({ ...base, date: d.due, label: d.label, kind: "ECHEANCE", code: d.code, visit: VISIT_CODES.has(d.code), overdue: d.status === "DEPASSEE" && d.kind === "OBLIGATION" });
     }
     for (const t of (tasks.data ?? []).filter((t: any) => t.case_id === c.id)) {
       items.push({ ...base, date: t.due_date, label: t.title, kind: "PLAN", code: t.code, visit: t.code === "VISITE_REPRISE", overdue: t.due_date < today });
