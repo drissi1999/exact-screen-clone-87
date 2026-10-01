@@ -31,6 +31,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { ReturnPlanTab } from "@/components/return-plan-tab";
+import { DeadlineStatus, KindBadge, MarkDoneButton } from "@/components/deadline-state";
 
 export const Route = createFileRoute("/_authenticated/dossiers_/$caseId")({
   head: () => ({
@@ -52,7 +53,11 @@ const DEADLINE_STATUS: Record<string, { label: string; v: "default" | "secondary
   EN_COURS: { label: "En cours", v: "default" },
   DEPASSEE: { label: "Dépassée", v: "destructive" },
   INFO: { label: "Dès la reprise connue", v: "secondary" },
+  FAIT: { label: "Fait", v: "secondary" },
+  NON_REALISE: { label: "Non réalisé", v: "secondary" },
+  ECHUE: { label: "Échue", v: "secondary" },
 };
+const ACTIVE = new Set(["A_VENIR", "EN_COURS", "DEPASSEE"]);
 const TASK_STATUS: Record<string, string> = { PENDING: "À envoyer", SENT: "Envoyé", ESCALATED: "Escaladé", DONE: "Terminé" };
 const RECIPIENT: Record<string, string> = { WORKER: "Salarié", EMPLOYER_HR: "Employeur", PDP_COORDINATOR: "Cellule PDP" };
 const fr = (s?: string | null) => (s ? new Date(`${s.slice(0, 10)}T12:00:00Z`).toLocaleDateString("fr-FR") : "—");
@@ -104,7 +109,9 @@ function CasePage() {
   const [conf, setConf] = useState("MEDICAL");
   const [edits, setEdits] = useState<Record<string, string>>({});
   const [workerUrl, setWorkerUrl] = useState<string | null>(null);
-  const [tab, setTab] = useState("plan");
+  const [tab, setTab] = useState("echeances");
+  const [planOpen, setPlanOpen] = useState(false);
+  const openPlan = () => { setPlanOpen(true); setTimeout(() => document.getElementById("plan-retour")?.scrollIntoView({ behavior: "smooth" }), 50); };
   const goTab = (t: string) => { setTab(t); setTimeout(() => document.getElementById("onglets")?.scrollIntoView({ behavior: "smooth" }), 50); };
   const fetchPlan = useServerFn(getReturnPlan);
   const { data: planData } = useQuery({ queryKey: ["plan", caseId], queryFn: () => fetchPlan({ data: { caseId } }) });
@@ -169,18 +176,20 @@ function CasePage() {
   const eps = episodes(data.stoppages as any);
   const cur = eps.at(-1);
   const daysOff = cur ? episodeDuration(cur, today) : null;
-  const dated = data.deadlines.filter((d) => d.due && d.status !== "INFO").sort((a, b) => a.due!.localeCompare(b.due!));
+  const dated = data.deadlines.filter((d) => d.due && ACTIVE.has(d.status)).sort((a, b) => a.due!.localeCompare(b.due!));
   const next = dated.find((d) => d.status !== "DEPASSEE") ?? dated[0] ?? null;
+  const isStaffEditor = !!me?.roles.some((r) => ["PDP_COORDINATOR", "IDEST", "MEDECIN_TRAVAIL", "SPSTI_ADMIN"].includes(r));
+  const kindRank: Record<string, number> = { OBLIGATION: 0, PLAN: 1, POSSIBILITE: 2, INFO: 3 };
   const topFactor = risk?.factors?.length ? [...risk.factors].sort((a: any, b: any) => b.points - a.points)[0] : null;
   const drafts = data.events.filter((e) => e.status === "DRAFT").length;
   const steps = [
-    ...data.deadlines.filter((d) => d.due && d.status !== "INFO").map((d) => ({ key: `d-${d.code}`, date: d.due!, label: d.label, kind: "deadline" as const, overdue: d.status === "DEPASSEE", who: LEGAL_CHECK_LABEL })),
-    ...((planData?.tasks ?? []) as any[]).filter((t) => t.status === "TODO" && !(t.kind === "MILESTONE" && String(t.code).startsWith("POINT_"))).map((t) => ({ key: `t-${t.id}`, date: t.due_date as string, label: t.title as string, kind: "plan" as const, overdue: t.due_date < today, who: "Plan de retour" })),
-  ].sort((a, b) => a.date.localeCompare(b.date));
+    ...data.deadlines.filter((d) => d.due && ACTIVE.has(d.status)).map((d) => ({ key: `d-${d.code}`, date: d.due!, label: d.label, kind: d.kind as string, deadline: d, overdue: d.kind === "OBLIGATION" && d.status === "DEPASSEE", who: `${d.legalRef} · ${LEGAL_CHECK_LABEL}` })),
+    ...((planData?.tasks ?? []) as any[]).filter((t) => t.status === "TODO" && !(t.kind === "MILESTONE" && String(t.code).startsWith("POINT_"))).map((t) => ({ key: `t-${t.id}`, date: t.due_date as string, label: t.title as string, kind: "PLAN", deadline: null, overdue: t.due_date < today, who: "Plan de retour" })),
+  ].sort((a, b) => (kindRank[a.kind]! - kindRank[b.kind]!) || a.date.localeCompare(b.date));
   const mainAction = drafts > 0
     ? { label: `Valider la chronologie (${drafts})`, onClick: () => document.getElementById("chronologie")?.scrollIntoView({ behavior: "smooth" }) }
     : !planData?.plan
-      ? { label: "Créer le plan de retour", onClick: () => goTab("plan") }
+      ? { label: "Créer le plan de retour", onClick: openPlan }
       : { label: "Planifier les relances", onClick: () => run("plan", async () => { const r = await plan({ data: { caseId } }); toast.success(`${r.created} action(s) planifiée(s)`); }) };
 
   return (
@@ -193,7 +202,10 @@ function CasePage() {
               <h1 className="text-2xl font-semibold tracking-tight">{data.case.worker}</h1>
               <p className="text-sm text-muted-foreground">{data.case.company} · {data.case.jobTitle ?? "Poste non renseigné"} · {ORIGIN[data.case.origin ?? ""] ?? "Origine inconnue"}</p>
             </div>
-            <Button disabled={!!busy} onClick={mainAction.onClick}>{mainAction.label}</Button>
+            <div className="flex flex-wrap gap-2">
+              {(planData?.plan || drafts > 0) && <Button variant="outline" onClick={() => (planOpen ? setPlanOpen(false) : openPlan())}>{planOpen ? "Fermer le plan de retour" : "Plan de retour"}</Button>}
+              <Button disabled={!!busy} onClick={mainAction.onClick}>{mainAction.label}</Button>
+            </div>
           </div>
           <dl className="mt-6 grid gap-6 border-t border-border pt-5 sm:grid-cols-3">
             <div>
@@ -202,7 +214,7 @@ function CasePage() {
             </div>
             <div>
               <dt className="text-xs text-muted-foreground">Prochaine échéance</dt>
-              <dd className="mt-1 space-y-1">{next ? <><p className="text-sm font-medium">{next.label}</p><DeadlineBadge due={next.due} overdue={next.status === "DEPASSEE"} /></> : <p className="text-sm text-muted-foreground">Aucune</p>}</dd>
+              <dd className="mt-1 space-y-1">{next ? <><p className="text-sm font-medium">{next.label}</p><DeadlineStatus d={next} /></> : <p className="text-sm text-muted-foreground">Aucune</p>}</dd>
             </div>
             <div>
               <dt className="text-xs text-muted-foreground">Indicateur de priorité</dt>
@@ -212,20 +224,29 @@ function CasePage() {
         </div>
       </div>
 
+      {planOpen && (
+        <section id="plan-retour" className="space-y-3">
+          <h2 className="text-sm font-semibold text-muted-foreground">Plan de retour</h2>
+          <ReturnPlanTab caseId={caseId} documents={data.documents} onUpload={uploadForPlan} canEdit={!!me?.roles.some((r) => ["PDP_COORDINATOR", "IDEST", "MEDECIN_TRAVAIL"].includes(r))} />
+        </section>
+      )}
+
       <section className="space-y-3">
         <h2 className="text-sm font-semibold text-muted-foreground">Prochaines étapes <span className="font-normal">· {steps.length}</span></h2>
         {steps.length === 0 ? (
-          <EmptyState text="Aucune étape datée pour ce dossier." action={!planData?.plan ? <Button size="sm" variant="outline" onClick={() => goTab("plan")}>Créer le plan de retour</Button> : undefined} />
+          <EmptyState text="Aucune étape datée pour ce dossier." action={!planData?.plan ? <Button size="sm" variant="outline" onClick={openPlan}>Créer le plan de retour</Button> : undefined} />
         ) : (
           <ul className="panel divide-y divide-border">
             {steps.slice(0, 8).map((st) => (
               <li key={st.key} className="flex flex-wrap items-center gap-4 px-5 py-3">
-                {st.kind === "plan" ? <ListChecks className="h-4 w-4 text-primary" aria-hidden /> : <CalendarClock className="h-4 w-4 text-muted-foreground" aria-hidden />}
+                {st.kind === "PLAN" ? <ListChecks className="h-4 w-4 text-primary" aria-hidden /> : <CalendarClock className="h-4 w-4 text-muted-foreground" aria-hidden />}
+                <KindBadge kind={st.kind} />
                 <div className="min-w-48 flex-1">
-                  <p className="text-sm font-medium">{st.label}</p>
+                  <p className={st.kind === "POSSIBILITE" ? "text-sm text-muted-foreground" : "text-sm font-medium"}>{st.label}</p>
                   <p className="text-xs text-muted-foreground">{st.who}</p>
                 </div>
-                <DeadlineBadge due={st.date} overdue={st.overdue} />
+                {st.deadline ? <DeadlineStatus d={st.deadline} /> : <DeadlineBadge due={st.date} overdue={st.overdue} />}
+                {st.deadline && <MarkDoneButton caseId={caseId} d={st.deadline} canEdit={isStaffEditor} onDone={refresh} />}
               </li>
             ))}
           </ul>
@@ -271,7 +292,6 @@ function CasePage() {
 
       <Tabs value={tab} onValueChange={setTab} id="onglets">
         <TabsList>
-          <TabsTrigger value="plan">Plan de retour</TabsTrigger>
           <TabsTrigger value="echeances">Échéances et arrêts</TabsTrigger>
           <TabsTrigger value="documents">Documents ({data.documents.length})</TabsTrigger>
           <TabsTrigger value="brouillons">Brouillons ({data.drafts.length})</TabsTrigger>
@@ -279,9 +299,6 @@ function CasePage() {
           <TabsTrigger value="journal">Journal</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="plan">
-          <ReturnPlanTab caseId={caseId} documents={data.documents} onUpload={uploadForPlan} canEdit={!!me?.roles.some((r) => ["PDP_COORDINATOR", "IDEST", "MEDECIN_TRAVAIL"].includes(r))} />
-        </TabsContent>
 
 <TabsContent value="echeances" className="space-y-4">
           <div className="panel p-4">
@@ -300,9 +317,11 @@ function CasePage() {
                   <p className="font-medium">{d.label}</p>
                   <p className="text-xs text-muted-foreground">{d.legalRef} · à partir du {fr(d.from)} · limite {fr(d.due)}</p>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <KindBadge kind={d.kind} />
                   <StatusBadge>{LEGAL_CHECK_LABEL}</StatusBadge>
-                  {d.due ? <DeadlineBadge due={d.due} overdue={d.status === "DEPASSEE"} /> : <StatusBadge>{DEADLINE_STATUS[d.status]!.label}</StatusBadge>}
+                  <DeadlineStatus d={d} />
+                  <MarkDoneButton caseId={caseId} d={d} canEdit={isStaffEditor} onDone={refresh} />
                 </div>
               </div>
             ))}
