@@ -2,6 +2,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { buildMyDay, scoreCases, RISK_TABLES } from "../../src/lib/my-day.server";
+import { markDeadlineDone } from "../../src/lib/deadlines.server";
 
 const URL = process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL;
 const ANON = process.env.SUPABASE_PUBLISHABLE_KEY ?? process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
@@ -53,7 +54,7 @@ run("Ma journée (live database)", () => {
 
   afterAll(async () => {
     if (tenant) {
-      for (const t of ["audit_log", "case_risk_scores", "case_events", "documents", "work_stoppages", "cases", "workers", "user_roles", "profiles", "companies"]) await admin.from(t).delete().eq("tenant_id", tenant);
+      for (const t of ["case_deadline_done", "audit_log", "case_risk_scores", "case_events", "documents", "work_stoppages", "cases", "workers", "user_roles", "profiles", "companies"]) await admin.from(t).delete().eq("tenant_id", tenant);
       await admin.from("tenants").delete().eq("id", tenant);
     }
     for (const u of users) await admin.auth.admin.deleteUser(u.id);
@@ -96,5 +97,19 @@ run("Ma journée (live database)", () => {
     await admin.from("case_events").insert({ tenant_id: tenant, case_id: overdueCase, label: "fait médical fictif", confidentiality: "MEDICAL", source_document_id: doc.id });
     const after = (await scoreCases(admin, tenant, [overdueCase], TODAY)).get(overdueCase)!;
     expect(after).toEqual(before);
+  });
+
+  it("'Marquer comme fait': obligations only, staff only, logged, and the case leaves En retard", async () => {
+    await expect(markDeadlineDone(admin, employer.id, overdueCase, "DECLARATION_AT", "2026-06-02", TODAY)).rejects.toThrow();
+    await expect(markDeadlineDone(admin, coord.id, overdueCase, "RDV_LIAISON", "2026-06-02", TODAY)).rejects.toThrow();
+    await expect(markDeadlineDone(admin, coord.id, overdueCase, "DECLARATION_AT", "2026-12-01", TODAY)).rejects.toThrow();
+    await markDeadlineDone(admin, coord.id, overdueCase, "DECLARATION_AT", "2026-06-02", TODAY);
+    await markDeadlineDone(admin, coord.id, overdueCase, "RESERVES_MOTIVEES", "2026-06-10", TODAY);
+    const { data: log } = await admin.from("audit_log").select("action, user_id").eq("case_id", overdueCase).like("action", "DEADLINE_DONE_%");
+    expect(log.map((l: any) => l.action).sort()).toEqual(["DEADLINE_DONE_DECLARATION_AT", "DEADLINE_DONE_RESERVES_MOTIVEES"]);
+    const day = await buildMyDay(admin, coord.id, TODAY);
+    expect(day.groups.EN_RETARD.map((r) => r.caseId)).not.toContain(overdueCase);
+    // The employer cannot read completions directly.
+    expect(((await employer.sb.from("case_deadline_done").select("id")).data ?? []).length).toBe(0);
   });
 });
