@@ -8,7 +8,7 @@ import { Lock, Upload } from "lucide-react";
 import { DeadlineBadge, EmptyState, StatusBadge } from "@/components/kit";
 import { Button } from "@/components/ui/button";
 
-const STATUS: Record<string, string> = { A_VENIR: "À venir", EN_COURS: "En cours", DEPASSEE: "Dépassée", INFO: "Dès la reprise connue", FAIT: "Fait", NON_REALISE: "Non réalisé", ECHUE: "Échue" };
+const STATUS: Record<string, string> = { A_VENIR: "À venir", EN_COURS: "En cours", DEPASSEE: "Dépassée", INFO: "Dès la reprise connue", FAIT: "Fait", NON_REALISE: "Non réalisé", ECHUE: "Échue", PLANIFIEE: "Visite planifiée" };
 
 export function EmployerView({ asCompanyId }: { asCompanyId?: string }) {
   const readOnly = !!asCompanyId;

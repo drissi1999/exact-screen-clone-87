@@ -4,19 +4,23 @@ import type { CaseFacts } from "./rules";
 export async function loadCaseFacts(db: any, caseIds: string[]): Promise<Map<string, CaseFacts>> {
   const out = new Map<string, CaseFacts>();
   if (!caseIds.length) return out;
-  const [{ data: cases }, { data: avis }, { data: done }] = await Promise.all([
+  const [{ data: cases }, { data: avis }, { data: done }, { data: visits }] = await Promise.all([
     db.from("cases").select("id, employer_known_at, cpam_investigation").in("id", caseIds),
     db.from("case_avis").select("case_id, avis_type, avis_date, created_at").in("case_id", caseIds).order("avis_date", { ascending: false }).order("created_at", { ascending: false }),
     db.from("case_deadline_done").select("case_id, code, done_on").in("case_id", caseIds),
+    db.from("visits").select("case_id, kind, scheduled_at").in("case_id", caseIds).neq("status", "ANNULEE").order("scheduled_at"),
   ]);
-  for (const c of cases ?? []) out.set(c.id, { employerKnownAt: c.employer_known_at, cpamInvestigation: !!c.cpam_investigation, avis: null, done: {} });
+  for (const c of cases ?? []) out.set(c.id, { employerKnownAt: c.employer_known_at, cpamInvestigation: !!c.cpam_investigation, avis: null, done: {}, planned: {} });
   for (const a of avis ?? []) {
     const f = out.get(a.case_id);
     if (f && !f.avis) f.avis = { type: a.avis_type, date: a.avis_date };
   }
   for (const d of done ?? []) { const f = out.get(d.case_id); if (f) f.done![d.code] = d.done_on; }
+  for (const v of visits ?? []) { const f = out.get(v.case_id); if (f) f.planned![v.kind] = parisDate(v.scheduled_at); }
   return out;
 }
+
+export const parisDate = (ts: string) => new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Paris" }).format(new Date(ts));
 
 /** Avis entry: MEDECIN_TRAVAIL of the case's tenant only, logged. `db` is the service-role client. */
 export async function insertAvis(db: any, actor: string, caseId: string, type: string, date: string): Promise<string> {

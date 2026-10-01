@@ -14,7 +14,9 @@ export type Deadline = {
   /** OBLIGATION: legal duty, the only kind that can be overdue (red). POSSIBILITE: optional step. INFO: informative date (CPAM, contestation window). */
   kind: DeadlineKind;
   /** FAIT: marked done; NON_REALISE: optional step whose window closed; ECHUE: informative date passed. */
-  status: "A_VENIR" | "EN_COURS" | "DEPASSEE" | "INFO" | "FAIT" | "NON_REALISE" | "ECHUE";
+  status: "A_VENIR" | "EN_COURS" | "DEPASSEE" | "INFO" | "FAIT" | "NON_REALISE" | "ECHUE" | "PLANIFIEE";
+  /** Date of the booked visit when status is PLANIFIEE. */
+  plannedOn?: string | null;
   /** Date the obligation was marked done. */
   doneOn?: string | null;
   /** Every rule is shown "à valider juridiquement" until a lawyer signs off. */
@@ -57,6 +59,8 @@ export type CaseFacts = {
   avis?: { type: "APTITUDE" | "APTITUDE_AMENAGEMENTS" | "INAPTITUDE"; date: string } | null;
   /** Obligations marked done: code -> date. */
   done?: Record<string, string>;
+  /** Visits booked for RDV_LIAISON / PRE_REPRISE / VISITE_REPRISE: code -> visit date. */
+  planned?: Record<string, string>;
 };
 
 export const LEGAL_CHECK_LABEL = "à valider juridiquement";
@@ -165,10 +169,12 @@ export function computeDeadlines(stoppages: Stoppage[], origin: string | null, t
     const kind = kindOf(d.code);
     const doneOn = facts.done?.[d.code] ?? null;
     let status = d.status;
+    const plannedOn = facts.planned?.[d.code] ?? null;
     if (kind === "OBLIGATION" && doneOn) status = "FAIT";
+    else if (plannedOn) status = "PLANIFIEE";
     else if (kind === "POSSIBILITE" && ((end && today > end) || status === "DEPASSEE")) status = "NON_REALISE";
     else if (kind === "INFO" && status === "DEPASSEE") status = "ECHUE";
-    out.push({ ...d, kind, status, doneOn, toValidate: true });
+    out.push({ ...d, kind, status, doneOn, plannedOn, toValidate: true });
   };
 
   if (o === "AT") {

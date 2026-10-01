@@ -56,6 +56,7 @@ const DEADLINE_STATUS: Record<string, { label: string; v: "default" | "secondary
   FAIT: { label: "Fait", v: "secondary" },
   NON_REALISE: { label: "Non réalisé", v: "secondary" },
   ECHUE: { label: "Échue", v: "secondary" },
+  PLANIFIEE: { label: "Planifiée", v: "secondary" },
 };
 const ACTIVE = new Set(["A_VENIR", "EN_COURS", "DEPASSEE"]);
 const TASK_STATUS: Record<string, string> = { PENDING: "À envoyer", SENT: "Envoyé", ESCALATED: "Escaladé", DONE: "Terminé" };
