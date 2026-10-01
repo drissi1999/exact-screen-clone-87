@@ -17,6 +17,8 @@ export type MyDayRow = {
   reason: string; detail?: string; deadlineCode?: string; nextDeadline: { label: string; due: string } | null;
   score: number; topFactors: { libelle: string; points: number }[]; action: MyDayAction;
   alertTaskIds?: string[];
+  /** Other issues on the same case (shown as "+N autre(s)"). */
+  others: string[];
 };
 
 export async function assertStaff(db: any, userId: string): Promise<string> {
@@ -110,19 +112,22 @@ export async function buildMyDay(db: any, userId: string, today = todayParis()) 
       nextDeadline: next ? { label: short(next), due: next.due! } : null,
       score: risk.score, topFactors: risk.factors.slice(0, 2).map((f) => ({ libelle: f.libelle, points: f.points })),
     };
-    const pick = (g: MyDayGroup, row: Omit<MyDayRow, keyof typeof base>) => { if (!placed) { groups[g].push({ ...base, ...row }); placed = true; } };
-    let placed = false;
+    // First matching issue is the row; the others are listed under "+N autre(s)".
+    let placed: MyDayRow | null = null;
+    const pick = (g: MyDayGroup, row: Omit<MyDayRow, keyof typeof base | "others">) => {
+      if (placed) { if (!placed.others.includes(row.reason)) placed.others.push(row.reason); return; }
+      placed = { ...base, ...row, others: [] }; groups[g].push(placed);
+    };
     const pa = plan.alerts.filter((t: any) => t.case_id === c.id);
     if (pa.length) pick("PLAN_ALERTES", { reason: `Suivi de reprise · ${pa[0].outcome === "RECHUTE" ? "rechute signalée" : "difficultés signalées"}`, detail: pa.map((t: any) => t.title).join(", "), action: "PLAN", alertTaskIds: pa.map((t: any) => t.id as string) });
     // Only legal obligations can be overdue.
     const overdue = upcoming.filter((d) => d.status === "DEPASSEE" && d.kind === "OBLIGATION");
-    if (overdue.length) pick("EN_RETARD", fromDeadline(overdue[0]!));
+    for (const d of overdue) pick("EN_RETARD", fromDeadline(d));
     const todayD = upcoming.find((d) => d.status !== "DEPASSEE" && d.due === today);
     if (todayD) pick("AUJOURDHUI", fromDeadline(todayD));
     const pd = plan.due.filter((t: any) => t.case_id === c.id);
     if (pd.length) pick("PLAN_TACHES", { reason: `${pd[0].title} · ${rel(pd[0].due_date)}`, detail: pd.map((t: any) => t.title).join(", "), action: "PLAN" });
-    const weekD = upcoming.find((d) => d.status !== "DEPASSEE" && d.due! > today && d.due! <= week);
-    if (weekD) pick("SEMAINE", fromDeadline(weekD));
+    for (const d of upcoming.filter((d) => d.status !== "DEPASSEE" && d.due! > today && d.due! <= week)) pick("SEMAINE", fromDeadline(d));
     const dm = docMap.get(c.id);
     if (dm?.draft_facts) pick("DOCUMENTS", { reason: `${dm.draft_facts} fait${dm.draft_facts > 1 ? "s" : ""} à valider dans la chronologie`, action: "VALIDER" });
     else if (dm?.publishable) pick("DOCUMENTS", { reason: `${dm.publishable} document${dm.publishable > 1 ? "s" : ""} prêt${dm.publishable > 1 ? "s" : ""} à publier`, action: "PUBLIER" });
@@ -136,7 +141,7 @@ export async function buildMyDay(db: any, userId: string, today = todayParis()) 
 }
 
 /** Dated items (deadlines + open plan tasks) for the agenda and the médecin's "Visites à préparer". No medical tables read. */
-export type AgendaItem = { date: string; caseId: string; worker: string; company: string; label: string; kind: "ECHEANCE" | "PLAN"; code: string; visit: boolean; overdue: boolean };
+export type AgendaItem = { date: string; caseId: string; worker: string; company: string; label: string; kind: "ECHEANCE" | "PLAN" | "VISITE"; code: string; visit: boolean; overdue: boolean; visitId?: string; time?: string };
 const VISIT_CODES = new Set(["PRE_REPRISE", "VISITE_REPRISE", "CONTESTATION_AVIS", "INAPTITUDE_SALARY_RESUMES"]);
 export async function buildAgenda(db: any, userId: string, today = todayParis(), days = 30): Promise<{ today: string; items: AgendaItem[] }> {
   const tenantId = await assertStaff(db, userId);
@@ -144,10 +149,14 @@ export async function buildAgenda(db: any, userId: string, today = todayParis(),
     .select("id, origin, workers(first_name, last_name), companies(name)").eq("tenant_id", tenantId).eq("status", "OPEN");
   const ids = (cases ?? []).map((c: any) => c.id as string);
   const until = addDays(today, days);
-  const [facts, st, tasks] = await Promise.all([
+  const { upcomingVisits } = await import("./visits.server");
+  const { VISIT_KIND_LABELS } = await import("./message-templates");
+  const { parisDate } = await import("./case-facts.server");
+  const [facts, st, tasks, visits] = await Promise.all([
     loadCaseFacts(db, ids),
     ids.length ? db.from("work_stoppages").select("case_id, start_date, end_date, origin, kind").in("case_id", ids) : { data: [] },
     ids.length ? db.from("plan_tasks").select("case_id, code, title, due_date").eq("tenant_id", tenantId).in("case_id", ids).eq("status", "TODO").lte("due_date", until) : { data: [] },
+    upcomingVisits(db, tenantId, ids),
   ]);
   const items: AgendaItem[] = [];
   for (const c of cases ?? []) {
@@ -159,7 +168,11 @@ export async function buildAgenda(db: any, userId: string, today = todayParis(),
     for (const t of (tasks.data ?? []).filter((t: any) => t.case_id === c.id)) {
       items.push({ ...base, date: t.due_date, label: t.title, kind: "PLAN", code: t.code, visit: t.code === "VISITE_REPRISE", overdue: t.due_date < today });
     }
+    for (const v of visits.filter((v) => v.case_id === c.id)) {
+      const time = new Intl.DateTimeFormat("fr-FR", { timeZone: "Europe/Paris", hour: "2-digit", minute: "2-digit" }).format(new Date(v.scheduled_at));
+      items.push({ ...base, date: parisDate(v.scheduled_at), label: `${VISIT_KIND_LABELS[v.kind]} à ${time}`, kind: "VISITE", code: v.kind, visit: true, overdue: false, visitId: v.id, time });
+    }
   }
-  items.sort((a, b) => a.date.localeCompare(b.date));
+  items.sort((a, b) => a.date.localeCompare(b.date) || (a.time ?? "").localeCompare(b.time ?? ""));
   return { today, items };
 }

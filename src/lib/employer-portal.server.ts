@@ -1,5 +1,5 @@
 import { computeDeadlines } from "./rules";
-import { genericDocTitle } from "./message-templates";
+import { genericDocTitle, VISIT_KIND_LABELS } from "./message-templates";
 import { loadCaseFacts } from "./case-facts.server";
 import { portalPlanTasks } from "./return-plan.server";
 import { PORTAL_DOC_COLUMNS, visibleInPortal } from "./portal-visibility";
@@ -17,11 +17,13 @@ export async function buildEmployerPortal(db: any, tenantId: string, companyId: 
       .eq("company_id", companyId)
       .order("opened_at", { ascending: false });
     const ids = (cases ?? []).map((c: any) => c.id);
-    const [st, docs, drafts, tasks] = await Promise.all([
+    const [st, docs, drafts, tasks, visits] = await Promise.all([
       db.from("work_stoppages").select("case_id, start_date, end_date, origin, kind").in("case_id", ids.length ? ids : ["00000000-0000-0000-0000-000000000000"]),
       db.from("documents").select(PORTAL_DOC_COLUMNS).in("case_id", ids.length ? ids : ["00000000-0000-0000-0000-000000000000"]).or("confidentiality.eq.EMPLOYER_VISIBLE,source.eq.EMPLOYER"),
       db.from("ai_drafts").select("id, case_id, kind, approved_text, approved_at").in("case_id", ids.length ? ids : ["00000000-0000-0000-0000-000000000000"]).eq("confidentiality", "EMPLOYER_VISIBLE").eq("status", "APPROVED"),
       db.from("coordination_tasks").select("id, case_id, message, status, due_at").in("case_id", ids.length ? ids : ["00000000-0000-0000-0000-000000000000"]).eq("recipient", "EMPLOYER_HR").in("status", ["SENT", "DONE"]),
+      // Booked visits: type and date only (never questions, gaps, summary or restrictions).
+      db.from("visits").select("case_id, kind, scheduled_at").in("case_id", ids.length ? ids : ["00000000-0000-0000-0000-000000000000"]).neq("status", "ANNULEE"),
     ]);
     const facts = await loadCaseFacts(db, ids);
     const planTasks = await portalPlanTasks(db, ids, "EMPLOYER_HR");
@@ -41,6 +43,7 @@ export async function buildEmployerPortal(db: any, tenantId: string, companyId: 
             .map((d) => ({ code: d.code, label: d.label, legalRef: d.legalRef, due: d.due, status: d.status, kind: d.kind, toValidate: true as const })),
           documents: (docs.data ?? []).filter((d: any) => d.case_id === c.id && visibleInPortal(d, "EMPLOYER")).map((d: any) => ({ id: d.id as string, title: genericDocTitle(d.doc_type), createdAt: d.created_at as string })),
           letters: (drafts.data ?? []).filter((d: any) => d.case_id === c.id).map((d: any) => ({ id: d.id as string, text: d.approved_text as string, approvedAt: d.approved_at as string })),
+          visits: (visits.data ?? []).filter((v: any) => v.case_id === c.id).map((v: any) => ({ label: VISIT_KIND_LABELS[v.kind] ?? "Visite", at: v.scheduled_at as string })),
           planTasks: planTasks.filter((t) => t.caseId === c.id).map(({ caseId: _c, ...t }) => t),
           tasks: (tasks.data ?? []).filter((t: any) => t.case_id === c.id).map((t: any) => ({ id: t.id as string, message: t.message as string, status: t.status as string, due: (t.due_at ?? null) as string | null })),
         };
