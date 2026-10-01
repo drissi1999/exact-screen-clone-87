@@ -28,6 +28,7 @@ import { Route as AuthenticatedDossiersCaseIdRouteImport } from './routes/_authe
 import { Route as AuthenticatedParametresDemandesDemoRouteImport } from './routes/_authenticated/parametres.demandes-demo'
 import { Route as AuthenticatedParametresEquipeRouteImport } from './routes/_authenticated/parametres.equipe'
 import { Route as AuthenticatedParametresImportsRouteImport } from './routes/_authenticated/parametres.imports'
+import { Route as AuthenticatedVisiteVisitIdRouteImport } from './routes/_authenticated/visite.$visitId'
 import { Route as ApiPublicIngestStoppagesRouteImport } from './routes/api/public/ingest/stoppages'
 
 const IndexRoute = IndexRouteImport.update({
@@ -130,6 +131,12 @@ const AuthenticatedParametresImportsRoute =
     path: '/parametres/imports',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedVisiteVisitIdRoute =
+  AuthenticatedVisiteVisitIdRouteImport.update({
+    id: '/visite/$visitId',
+    path: '/visite/$visitId',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const ApiPublicIngestStoppagesRoute =
   ApiPublicIngestStoppagesRouteImport.update({
     id: '/api/public/ingest/stoppages',
@@ -156,6 +163,7 @@ export interface FileRoutesByFullPath {
   '/parametres/demandes-demo': typeof AuthenticatedParametresDemandesDemoRoute
   '/parametres/equipe': typeof AuthenticatedParametresEquipeRoute
   '/parametres/imports': typeof AuthenticatedParametresImportsRoute
+  '/visite/$visitId': typeof AuthenticatedVisiteVisitIdRoute
   '/api/public/ingest/stoppages': typeof ApiPublicIngestStoppagesRoute
 }
 export interface FileRoutesByTo {
@@ -177,6 +185,7 @@ export interface FileRoutesByTo {
   '/parametres/demandes-demo': typeof AuthenticatedParametresDemandesDemoRoute
   '/parametres/equipe': typeof AuthenticatedParametresEquipeRoute
   '/parametres/imports': typeof AuthenticatedParametresImportsRoute
+  '/visite/$visitId': typeof AuthenticatedVisiteVisitIdRoute
   '/api/public/ingest/stoppages': typeof ApiPublicIngestStoppagesRoute
 }
 export interface FileRoutesById {
@@ -200,6 +209,7 @@ export interface FileRoutesById {
   '/_authenticated/parametres/demandes-demo': typeof AuthenticatedParametresDemandesDemoRoute
   '/_authenticated/parametres/equipe': typeof AuthenticatedParametresEquipeRoute
   '/_authenticated/parametres/imports': typeof AuthenticatedParametresImportsRoute
+  '/_authenticated/visite/$visitId': typeof AuthenticatedVisiteVisitIdRoute
   '/api/public/ingest/stoppages': typeof ApiPublicIngestStoppagesRoute
 }
 export interface FileRouteTypes {
@@ -223,6 +233,7 @@ export interface FileRouteTypes {
     | '/parametres/demandes-demo'
     | '/parametres/equipe'
     | '/parametres/imports'
+    | '/visite/$visitId'
     | '/api/public/ingest/stoppages'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -244,6 +255,7 @@ export interface FileRouteTypes {
     | '/parametres/demandes-demo'
     | '/parametres/equipe'
     | '/parametres/imports'
+    | '/visite/$visitId'
     | '/api/public/ingest/stoppages'
   id:
     | '__root__'
@@ -266,6 +278,7 @@ export interface FileRouteTypes {
     | '/_authenticated/parametres/demandes-demo'
     | '/_authenticated/parametres/equipe'
     | '/_authenticated/parametres/imports'
+    | '/_authenticated/visite/$visitId'
     | '/api/public/ingest/stoppages'
   fileRoutesById: FileRoutesById
 }
@@ -413,6 +426,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedParametresImportsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/visite/$visitId': {
+      id: '/_authenticated/visite/$visitId'
+      path: '/visite/$visitId'
+      fullPath: '/visite/$visitId'
+      preLoaderRoute: typeof AuthenticatedVisiteVisitIdRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/api/public/ingest/stoppages': {
       id: '/api/public/ingest/stoppages'
       path: '/api/public/ingest/stoppages'
@@ -438,6 +458,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedParametresDemandesDemoRoute: typeof AuthenticatedParametresDemandesDemoRoute
   AuthenticatedParametresEquipeRoute: typeof AuthenticatedParametresEquipeRoute
   AuthenticatedParametresImportsRoute: typeof AuthenticatedParametresImportsRoute
+  AuthenticatedVisiteVisitIdRoute: typeof AuthenticatedVisiteVisitIdRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
@@ -456,6 +477,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
     AuthenticatedParametresDemandesDemoRoute,
   AuthenticatedParametresEquipeRoute: AuthenticatedParametresEquipeRoute,
   AuthenticatedParametresImportsRoute: AuthenticatedParametresImportsRoute,
+  AuthenticatedVisiteVisitIdRoute: AuthenticatedVisiteVisitIdRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
